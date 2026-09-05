@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.venv-tools/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Node / Electron
+node_modules/
+dist/
+out/
+release/
+*.tsbuildinfo
+
+# PlatformIO / ESP-IDF
+firmware/.pio/
+firmware/sdkconfig
+firmware/sdkconfig.old
+firmware/sdkconfig.esp32*
+firmware/build/
+firmware/managed_components/
+firmware/dependencies.lock
+
+# Host firmware tests
+firmware/test/host/build/
+firmware/test/host/*.o
+firmware/test/host/run_tests
+
+# Local data
+*.db
+*.db-wal
+*.db-shm
+*.log
+captures/
+runs/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp

@@ -1,0 +1,194 @@
+# ENLP — EspStation Node Link Protocol
+# Machine-readable single source of truth. Prose lives in PROTOCOL.md.
+# Consumed by tools/check_protocol.py (drift gate) and, later, by codegen.
+#
+# RULE: changing anything here means changing PROTOCOL.md, the firmware codec,
+# the gateway codec and the desktop types IN THE SAME COMMIT.
+
+protocol:
+  name: ENLP
+  version: "0.1.0"
+  wire_version: 1          # the `ver` byte; must match exactly between peers
+  endianness: little
+  max_payload: 1024        # serial / TCP
+  max_payload_espnow: 240  # 250 B ESP-NOW payload − 10 B header+CRC
+
+crc:
+  algorithm: CRC-16/CCITT-FALSE
+  poly: 0x1021
+  init: 0xFFFF
+  reflect_in: false
+  reflect_out: false
+  xor_out: 0x0000
+  covers: header_and_payload   # bytes [0, 8+len)
+
+framing:
+  serial:  { kind: cobs,          delimiter: 0x00 }
+  tcp:     { kind: length_prefix, size: 2, endian: big }
+  websocket:
+    kind: length_prefix
+    size: 2
+    endian: big
+    ws_frame: binary
+  espnow:  { kind: raw }
+
+header:
+  size: 8
+  fields:
+    - { name: ver,  type: u8,  offset: 0 }
+    - { name: type, type: u8,  offset: 1 }
+    - { name: node, type: u16, offset: 2, note: "0 = station" }
+    - { name: seq,  type: u16, offset: 4 }
+    - { name: len,  type: u16, offset: 6 }
+trailer:
+  - { name: crc16, type: u16 }
+
+encodings:   # the `enc` byte in TELEMETRY samples
+  0: { name: u8,   size: 1 }
+  1: { name: i8,   size: 1 }
+  2: { name: u16,  size: 2 }
+  3: { name: i16,  size: 2 }
+  4: { name: u32,  size: 4 }
+  5: { name: i32,  size: 4 }
+  6: { name: f32,  size: 4 }
+  7: { name: bool, size: 1 }
+
+messages:
+  - { code: 0x01, name: HELLO,      dir: n2s,  plane: json,   schema: hello }
+  - { code: 0x02, name: HELLO_ACK,  dir: s2n,  plane: json,   schema: hello_ack }
+  - { code: 0x03, name: HEARTBEAT,  dir: n2s,  plane: packed, struct: heartbeat }
+  - { code: 0x10, name: TELEMETRY,  dir: n2s,  plane: packed, struct: telemetry }
+  - { code: 0x11, name: TELEM_ACK,  dir: s2n,  plane: packed, struct: telem_ack }
+  - { code: 0x20, name: LOG,        dir: n2s,  plane: packed, struct: log }
+  - { code: 0x21, name: EVENT,      dir: n2s,  plane: json,   schema: event }
+  - { code: 0x30, name: CMD,        dir: s2n,  plane: json,   schema: cmd }
+  - { code: 0x31, name: CMD_ACK,    dir: n2s,  plane: json,   schema: cmd_ack }
+  - { code: 0x40, name: EXP_SET,    dir: s2n,  plane: json,   schema: experiment }
+  - { code: 0x41, name: EXP_STATE,  dir: n2s,  plane: json,   schema: exp_state }
+  - { code: 0x50, name: BULK_BEGIN, dir: n2s,  plane: json,   schema: bulk_begin }
+  - { code: 0x51, name: BULK_CHUNK, dir: n2s,  plane: packed, struct: bulk_chunk }
+  - { code: 0x52, name: BULK_END,   dir: n2s,  plane: json,   schema: bulk_end }
+  - { code: 0x60, name: NET_REPORT, dir: n2s,  plane: json,   schema: net_report }
+  - { code: 0x61, name: NET_CMD,    dir: s2n,  plane: json,   schema: net_cmd }
+  - { code: 0x70, name: TIME_SYNC,  dir: both, plane: packed, struct: time_sync }
+
+reserved_ranges:
+  - { from: 0x80, to: 0xFF, purpose: "experiment-defined; gateway passes through opaquely" }
+
+structs:
+  heartbeat:
+    size: 16
+    fields:
+      - { name: uptime_ms, type: u32, offset: 0 }
+      - { name: heap_free, type: u32, offset: 4 }
+      - { name: heap_min,  type: u32, offset: 8 }
+      - { name: state,     type: u8,  offset: 12, enum: node_state }
+      - { name: flags,     type: u8,  offset: 13, bits: heartbeat_flags }
+      - { name: rssi,      type: i8,  offset: 14, unit: dBm }
+      - { name: reserved,  type: u8,  offset: 15 }
+  telemetry:
+    header_size: 6
+    fields:
+      - { name: base_ts_ms, type: u32, offset: 0 }
+      - { name: count,      type: u8,  offset: 4, min: 1, max: 64 }
+      - { name: flags,      type: u8,  offset: 5, bits: telemetry_flags }
+    repeated:
+      name: samples
+      count_from: count
+      fields:
+        - { name: ch,     type: u8 }
+        - { name: dt_ms,  type: u16 }
+        - { name: enc,    type: u8, enum_table: encodings }
+        - { name: value,  type: variable, size_from: enc }
+  telem_ack:
+    size: 6
+    fields:
+      - { name: node,     type: u16, offset: 0 }
+      - { name: last_seq, type: u16, offset: 2 }
+      - { name: flags,    type: u16, offset: 4 }
+  log:
+    header_size: 6
+    fields:
+      - { name: ts_ms,   type: u32, offset: 0 }
+      - { name: level,   type: u8,  offset: 4, enum: log_level }
+      - { name: tag_len, type: u8,  offset: 5 }
+      - { name: tag,     type: utf8, size_from: tag_len }
+      - { name: msg,     type: utf8, size: remainder }
+  bulk_chunk:
+    header_size: 2
+    fields:
+      - { name: index, type: u16, offset: 0 }
+      - { name: data,  type: bytes, size: remainder }
+  time_sync:
+    size: 24
+    fields:
+      - { name: t1_host_us, type: u64, offset: 0,  note: "µs since Unix epoch" }
+      - { name: t2_node_ms, type: u32, offset: 8 }
+      - { name: t3_node_ms, type: u32, offset: 12 }
+      - { name: reserved,   type: u64, offset: 16 }
+
+enums:
+  node_state:
+    0: boot
+    1: idle
+    2: running
+    3: degraded
+    4: safe
+  log_level:      # ESP-IDF esp_log_level_t order
+    0: none
+    1: error
+    2: warn
+    3: info
+    4: debug
+    5: verbose
+  severity: [debug, info, warning, error, critical]
+  exp_state: [idle, armed, running, paused, done, aborted]
+
+bitfields:
+  heartbeat_flags:
+    0: buffered_pending
+    1: link_was_lost
+    2: brownout_since_boot
+    3: watchdog_reset
+  telemetry_flags:
+    0: replay
+    1: gap_before
+
+channel_id_ranges:
+  - { from: 1,   to: 15,  purpose: system }
+  - { from: 16,  to: 127, purpose: experiment_and_sensors }
+  - { from: 128, to: 255, purpose: network_diagnostics }
+
+system_channels:   # every node MUST declare these in its NDB
+  - { id: 1, key: sys.heap_free, unit: B,   type: u32 }
+  - { id: 2, key: sys.rssi,      unit: dBm, type: i8 }
+  - { id: 3, key: sys.uptime,    unit: s,   type: u32 }
+  - { id: 4, key: sys.vbat,      unit: V,   type: f32, optional: true }
+  - { id: 5, key: sys.temp,      unit: degC, type: f32, optional: true }
+
+commands:   # op -> { mutating, args }
+  node.ping:          { mutating: false }
+  node.info:          { mutating: false }
+  node.reboot:        { mutating: true }
+  node.set_id:        { mutating: true,  args: [node_id] }
+  node.set_label:     { mutating: true,  args: [label] }
+  node.set_log_level: { mutating: true,  args: [level] }
+  exp.start:          { mutating: true,  args: [run_id] }
+  exp.stop:           { mutating: true }
+  exp.state:          { mutating: false }
+  store.drain:        { mutating: false }
+  store.erase:        { mutating: true }
+  bulk.resend:        { mutating: false, args: [stream, index] }
+  net.scan:           { mutating: false }
+
+timing:
+  heartbeat_hz: 1
+  hello_retry_s: 30
+  cmd_timeout_s: 2
+  cmd_retries: 2
+  telemetry_rate_limit_hz: 200
+
+conventions:
+  node_time: "uint32 monotonic milliseconds since boot; wraps at ~49.7 days"
+  host_time: "float Unix epoch seconds (same convention as PiStation)"
+  mapping: "host_ts = node_ts_ms/1000 + offset, offset from TIME_SYNC per node"

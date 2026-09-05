@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/trimaxlan98/espstation/protocol/experiment.schema.json",
+  "title": "EspStation experiment spec",
+  "description": "A declarative experiment. Pushed with EXP_SET (0x40), persisted to NVS, and executed by the node with or without a station connected. Prose: docs/EXPERIMENTS.md.",
+  "type": "object",
+  "required": ["schema", "id", "channels"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "type": "integer", "const": 1,
+      "description": "Spec version. A node rejects what it does not understand rather than guessing."
+    },
+    "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9._-]+$" },
+    "name": { "type": "string", "maxLength": 128 },
+    "standalone": {
+      "type": "boolean", "default": false,
+      "description": "Production mode: after the HELLO window the node stops seeking a station and drops the link to a low duty cycle."
+    },
+    "persist": {
+      "type": "boolean", "default": false,
+      "description": "Write telemetry to LittleFS as well as the RAM ring, so a power cycle does not lose the run."
+    },
+    "duration_ms": { "type": "integer", "minimum": 0, "default": 0, "description": "0 = run until stopped." },
+    "hello_window_ms": { "type": "integer", "minimum": 0, "default": 120000 },
+    "start": {
+      "type": "object",
+      "required": ["mode"],
+      "additionalProperties": false,
+      "properties": {
+        "mode": { "enum": ["manual", "on_boot", "at_ms", "on_trigger"] },
+        "at_ms": { "type": "integer", "minimum": 0, "description": "Node-monotonic deadline; required when mode is at_ms." },
+        "trigger": { "type": "string", "description": "Trigger id; required when mode is on_trigger." }
+      },
+      "allOf": [
+        { "if": { "properties": { "mode": { "const": "at_ms" } }, "required": ["mode"] }, "then": { "required": ["at_ms"] } },
+        { "if": { "properties": { "mode": { "const": "on_trigger" } }, "required": ["mode"] }, "then": { "required": ["trigger"] } }
+      ]
+    },
+    "channels": {
+      "type": "array", "minItems": 1, "maxItems": 64,
+      "items": {
+        "type": "object",
+        "required": ["key", "rate_hz"],
+        "additionalProperties": false,
+        "properties": {
+          "key": { "type": "string", "description": "Must exist in the target node's NDB. Checked station-side before sending, node-side on receipt, and again at boot." },
+          "rate_hz": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000 },
+          "enc": {
+            "enum": ["u8", "i8", "u16", "i16", "u32", "i32", "f32", "bool"],
+            "description": "Transport encoding, may be narrower than the channel's semantic type to save bandwidth."
+          },
+          "scale": { "type": "number", "description": "value = raw * scale. Applied by the station on ingest; pairs with a narrowed enc." },
+          "offset": { "type": "number" },
+          "deadband": { "type": "number", "minimum": 0, "description": "Suppress a sample whose change from the last sent value is below this." }
+        }
+      }
+    },
+    "triggers": {
+      "type": "array", "maxItems": 16,
+      "items": {
+        "type": "object",
+        "required": ["when"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "maxLength": 32 },
+          "when": {
+            "type": "object",
+            "required": ["channel", "op", "value"],
+            "additionalProperties": false,
+            "properties": {
+              "channel": { "type": "string" },
+              "op": { "enum": [">", ">=", "<", "<=", "==", "!=", "delta"] },
+              "value": { "type": "number" },
+              "for_ms": { "type": "integer", "minimum": 0, "default": 0, "description": "Debounce: the condition must hold this long before firing." }
+            }
+          },
+          "emit": { "type": "string", "description": "Event code emitted when the trigger fires." },
+          "once": { "type": "boolean", "default": false },
+          "do": {
+            "type": "array", "maxItems": 8,
+            "items": {
+              "type": "object",
+              "required": ["action"],
+              "properties": {
+                "action": { "enum": ["set_state", "set_rate", "set_gpio", "stop", "reboot", "mark", "burst"] },
+                "state": { "enum": ["idle", "running", "degraded", "safe"] },
+                "channel": { "type": "string" },
+                "rate_hz": { "type": "number", "exclusiveMinimum": 0 },
+                "gpio": { "type": "integer", "minimum": 0, "maximum": 48 },
+                "level": { "type": "integer", "enum": [0, 1] },
+                "ms": { "type": "integer", "minimum": 0 },
+                "label": { "type": "string", "maxLength": 64 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "network": {
+      "type": ["object", "null"],
+      "required": ["mode"],
+      "additionalProperties": false,
+      "properties": {
+        "mode": { "enum": ["espnow", "wifi_sta", "wifi_ap", "mesh"] },
+        "role": { "enum": ["peer", "root", "leaf", "sniffer"], "default": "peer" },
+        "channel": { "type": "integer", "minimum": 1, "maximum": 14 },
+        "ssid": { "type": "string", "maxLength": 32 },
+        "peers": {
+          "oneOf": [
+            { "const": "auto" },
+            { "type": "array", "items": { "type": "string", "pattern": "^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$" }, "maxItems": 20 }
+          ]
+        },
+        "test": {
+          "type": "object",
+          "required": ["kind"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "enum": ["loss_latency", "throughput", "range_sweep", "flood", "custom"] },
+            "rate_hz": { "type": "number", "exclusiveMinimum": 0 },
+            "payload_bytes": { "type": "integer", "minimum": 1, "maximum": 240, "description": "ESP-NOW carries 250 B; the ENLP header and CRC cost 10." },
+            "duration_ms": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "meta": { "type": "object", "description": "Free-form; stored with the run record." }
+  }
+}
