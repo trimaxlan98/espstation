@@ -61,7 +61,7 @@ puertas, y convenciones de agentes listas.
 - [ ] Revisión adversarial independiente (reviewer Opus). La auditoría del
       orquestador ya corrigió drift del gate, contrato REST/WS vs desktop,
       timestamps iniciales, precisión NDB y dependencias vulnerables
-- [ ] Repo en GitHub con CI en verde
+- [x] Repo en GitHub con CI en verde — run `33944882088` sobre `0e5e454`
 
 ## Estrategia operativa
 
