@@ -74,6 +74,9 @@ See [`docs/SETUP.md`](docs/SETUP.md) for first-time setup (including the
 `dialout` group, which you will hit immediately). Day to day:
 
 ```bash
+# Everything verifiable without hardware — this is exactly what CI runs
+make check
+
 # Firmware — host tests (no ESP32 needed, run these constantly)
 make -C firmware/test/host test
 

@@ -29,6 +29,7 @@ feature, answer *what happens when the cable is unplugged?* If the answer is
 
 ## Run things
 ```bash
+make check                                           # every hardware-free gate, same as CI
 make -C firmware/test/host test                     # codec tests, no hardware, seconds
 cd gateway && .venv/bin/python -m pytest tests/ -q
 .venv/bin/python -m espstation_gateway --sim --port 8787    # simulated nodes

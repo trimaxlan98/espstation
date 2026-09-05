@@ -74,6 +74,9 @@ cd gateway && ~/.local/bin/virtualenv .venv && .venv/bin/pip install -e ".[dev]"
 cd ../desktop && npm install && npm run dev
 ```
 
+`make check` runs every gate that does not need hardware — the same set CI
+runs. `make help` lists the rest.
+
 Full instructions, the ESP32 toolchain, and the `dialout` permission you will
 hit within five minutes: [`docs/SETUP.md`](docs/SETUP.md).
 
