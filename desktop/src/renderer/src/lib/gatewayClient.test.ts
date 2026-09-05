@@ -12,6 +12,26 @@ function fakeFetch(response: { ok: boolean; status?: number; statusText?: string
 }
 
 describe('GatewayClient — URL building and auth', () => {
+  it('invokes the default browser fetch with its required global receiver', async () => {
+    const fetchFn = vi.fn(function (this: unknown) {
+      expect(this).toBe(globalThis)
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        statusText: '',
+        json: () => Promise.resolve({ name: 'gw' })
+      } as Response)
+    })
+    vi.stubGlobal('fetch', fetchFn)
+
+    try {
+      const client = new GatewayClient({ baseUrl: 'http://127.0.0.1:8787', token: 't' })
+      await expect(client.ping()).resolves.toEqual({ name: 'gw' })
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('strips a trailing slash from baseUrl and joins the path cleanly', async () => {
     const fetchFn = fakeFetch({ ok: true, json: () => Promise.resolve({ name: 'gw' }) })
     const client = new GatewayClient({ baseUrl: 'http://127.0.0.1:8787/', token: 't' }, fetchFn as never)

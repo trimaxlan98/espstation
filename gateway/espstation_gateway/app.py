@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import Body, Depends, FastAPI, Header, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from . import __version__
@@ -71,6 +72,14 @@ class SimSpawnBody(BaseModel):
 def create_app(settings: Settings | None = None, *, store: Store | None = None) -> FastAPI:
     settings = settings or Settings()
     app = FastAPI(title="espstation-gateway", version=API_VERSION)
+    app.add_middleware(
+        CORSMiddleware,
+        # Vite uses localhost in development; packaged Electron pages send a
+        # null origin. Authorization still requires the gateway bearer token.
+        allow_origin_regex=r"^(?:https?://(?:localhost|127\.0\.0\.1)(?::\d+)?|null)$",
+        allow_methods=["*"],
+        allow_headers=["Authorization", "Content-Type"],
+    )
     app.state.settings = settings
     app.state.store = store or Store(settings.db_path)
     app.state.runtime = GatewayRuntime(app.state.store)

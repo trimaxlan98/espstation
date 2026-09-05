@@ -14,6 +14,37 @@ AUTH = {"Authorization": f"Bearer {DEFAULT_TOKEN}"}
 
 
 @pytest.mark.asyncio
+async def test_cors_allows_local_electron_renderer_preflight(tmp_path) -> None:
+    store = Store(tmp_path / "cors.db")
+    app = create_app(store=store)
+    transport = httpx.ASGITransport(app=app)
+
+    async with app.router.lifespan_context(app), httpx.AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
+        response = await client.options(
+            "/api/nodes",
+            headers={
+                "Origin": "http://localhost:5173",
+                "Access-Control-Request-Method": "GET",
+                "Access-Control-Request-Headers": "authorization",
+            },
+        )
+        remote_response = await client.options(
+            "/api/nodes",
+            headers={
+                "Origin": "https://example.com",
+                "Access-Control-Request-Method": "GET",
+                "Access-Control-Request-Headers": "authorization",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+    assert "access-control-allow-origin" not in remote_response.headers
+
+
+@pytest.mark.asyncio
 async def test_sim_node_rest_shapes_match_desktop_contract(tmp_path) -> None:
     store = Store(tmp_path / "contract.db")
     app = create_app(Settings(sim_preload=1), store=store)

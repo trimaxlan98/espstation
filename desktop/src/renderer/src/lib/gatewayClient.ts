@@ -81,7 +81,10 @@ export class GatewayClient {
   private config: GatewayConfig
   private readonly fetchFn: FetchFn
 
-  constructor(config: GatewayConfig, fetchFn: FetchFn = fetch) {
+  constructor(
+    config: GatewayConfig,
+    fetchFn: FetchFn = (input, init) => globalThis.fetch(input, init)
+  ) {
     this.config = { ...config, baseUrl: normalizeBaseUrl(config.baseUrl) }
     this.fetchFn = fetchFn
   }
@@ -279,8 +282,8 @@ export class GatewayStream {
     this.wsFactory =
       opts.wsFactory ??
       ((url: string) => new WebSocket(url) as unknown as WebSocketLike)
-    this.setTimeoutFn = opts.setTimeoutFn ?? setTimeout
-    this.clearTimeoutFn = opts.clearTimeoutFn ?? clearTimeout
+    this.setTimeoutFn = opts.setTimeoutFn ?? ((cb, ms) => globalThis.setTimeout(cb, ms))
+    this.clearTimeoutFn = opts.clearTimeoutFn ?? ((handle) => globalThis.clearTimeout(handle))
     this.backoffBaseMs = opts.backoffBaseMs ?? DEFAULT_BACKOFF_BASE_MS
     this.backoffMaxMs = opts.backoffMaxMs ?? DEFAULT_BACKOFF_MAX_MS
   }

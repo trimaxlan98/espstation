@@ -41,18 +41,18 @@ puertas, y convenciones de agentes listas.
       `esps_core`, `esps_link` (UART), `main.c`. Host verificado con ASan/UBSan
       y target `esp32dev` compilado con PlatformIO/ESP-IDF 5.5.
 - [x] **gateway/** (builder Sonnet) — códec, transports (serial/tcp/sim),
-      store SQLite, API FastAPI, `docs/API.md`, 37 tests. Contrato REST/WS
+      store SQLite, API FastAPI, `docs/API.md`, 38 tests. Contrato REST/WS
       verificado contra los tipos del desktop.
 - [x] **desktop/** (builder Sonnet) — Electron+React, design system, secciones
-      Nodes y Live, 63 tests, typecheck y build. Árbol npm sin vulnerabilidades.
+      Nodes y Live, 64 tests, typecheck y build. Árbol npm sin vulnerabilidades.
 
 ## Definition of done de S0
 
 - [x] `make -C firmware/test/host test` verde (ASan/UBSan; LeakSanitizer
       desactivado porque el códec tiene prohibido asignar memoria)
-- [x] `gateway/.venv/bin/python -m pytest tests/ -q` verde — 37 passed
+- [x] `gateway/.venv/bin/python -m pytest tests/ -q` verde — 38 passed
 - [x] `cd desktop && npm run typecheck && npm test && npm run build` verde —
-      63 passed
+      64 passed
 - [x] `pio run -d firmware -e esp32dev` compila — verificado con Python 3.13;
       14,848 B RAM (4.5%), 230,711 B flash de aplicación (22.0%)
 - [x] `python -m espstation_gateway --sim` sirve `/api/nodes` con 3 nodos
