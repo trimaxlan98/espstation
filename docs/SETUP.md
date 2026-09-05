@@ -45,10 +45,14 @@ The app starts pre-configured for `127.0.0.1:8787` with the dev token
 ## 4. ESP32 toolchain — only when you have a board
 
 PlatformIO vendors its own compiler, CMake and Ninja, so there is no
-system-wide ESP-IDF install to manage.
+system-wide ESP-IDF install to manage. Use Python 3.11–3.13 for this environment:
+the ESP-IDF 5.5 dependency set used by PlatformIO 6.13 is not yet compatible
+with Python 3.14 (`pydantic-core` fails to build even with PyO3's forward-ABI
+flag). The workstation's default `python3` is currently 3.14, so install or
+select a supported interpreter explicitly before creating `.venv-tools`.
 
 ```bash
-~/.local/bin/virtualenv .venv-tools
+python3.13 -m virtualenv .venv-tools
 .venv-tools/bin/pip install platformio
 .venv-tools/bin/pio pkg install -d firmware -e esp32dev   # ~1 GB, once
 .venv-tools/bin/pio run -d firmware -e esp32dev

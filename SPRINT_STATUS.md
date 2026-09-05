@@ -37,22 +37,30 @@ puertas, y convenciones de agentes listas.
 
 ## Entregado por los builders
 
-- [ ] **firmware/** (builder Sonnet) — `esps_proto` puro C11 + tests de host,
-      `esps_core`, `esps_link` (UART), `main.c`. *En verificación.*
-- [ ] **gateway/** (builder Sonnet) — códec, transports (serial/tcp/sim),
-      store SQLite, API FastAPI, `docs/API.md`, pytest. *En verificación.*
-- [ ] **desktop/** (builder Sonnet) — Electron+React, design system, secciones
-      Nodes y Live, vitest. *En verificación.*
+- [x] **firmware/** (builder Sonnet) — `esps_proto` puro C11 + tests de host,
+      `esps_core`, `esps_link` (UART), `main.c`. Host verificado con ASan/UBSan
+      y target `esp32dev` compilado con PlatformIO/ESP-IDF 5.5.
+- [x] **gateway/** (builder Sonnet) — códec, transports (serial/tcp/sim),
+      store SQLite, API FastAPI, `docs/API.md`, 37 tests. Contrato REST/WS
+      verificado contra los tipos del desktop.
+- [x] **desktop/** (builder Sonnet) — Electron+React, design system, secciones
+      Nodes y Live, 63 tests, typecheck y build. Árbol npm sin vulnerabilidades.
 
 ## Definition of done de S0
 
-- [ ] `make -C firmware/test/host test` verde
-- [ ] `gateway/.venv/bin/python -m pytest tests/ -q` verde
-- [ ] `cd desktop && npm run typecheck && npm test && npm run build` verde
-- [ ] `pio run -d firmware -e esp32dev` compila
-- [ ] `python -m espstation_gateway --sim` sirve `/api/nodes` con nodos simulados
-- [ ] `tools/check_protocol.py` verde
-- [ ] Revisión adversarial (reviewer Opus) con hallazgos resueltos
+- [x] `make -C firmware/test/host test` verde (ASan/UBSan; LeakSanitizer
+      desactivado porque el códec tiene prohibido asignar memoria)
+- [x] `gateway/.venv/bin/python -m pytest tests/ -q` verde — 37 passed
+- [x] `cd desktop && npm run typecheck && npm test && npm run build` verde —
+      63 passed
+- [x] `pio run -d firmware -e esp32dev` compila — verificado con Python 3.13;
+      14,848 B RAM (4.5%), 230,711 B flash de aplicación (22.0%)
+- [x] `python -m espstation_gateway --sim` sirve `/api/nodes` con 3 nodos
+      simulados (verificado por HTTP con token)
+- [x] `tools/check_protocol.py` verde — 55 checks
+- [ ] Revisión adversarial independiente (reviewer Opus). La auditoría del
+      orquestador ya corrigió drift del gate, contrato REST/WS vs desktop,
+      timestamps iniciales, precisión NDB y dependencias vulnerables
 - [ ] Repo en GitHub con CI en verde
 
 ## Estrategia operativa
@@ -73,5 +81,9 @@ seguridad, no la excepción.
 - Hay un **ESP32 WROOM (CP2102) conectado** en `/dev/ttyUSB0`, sin flashear.
 - Entornos `esp32s3`/`esp32c3`/`esp32c6` declarados pero **sin hardware que los
   valide** (D-13). No presentarlos como soportados.
+- El `.venv-tools` original usa Python 3.14, incompatible con el conjunto de
+  dependencias de ESP-IDF 5.5. El build quedó verificado con un entorno aislado
+  Python 3.13; recrear `.venv-tools` con Python 3.11–3.13 para que `make fw-build`
+  funcione directamente (ver `docs/SETUP.md`).
 - El `uint32` de ms del nodo da la vuelta a los ~49.7 días; el manejo del wrap
   en el gateway está especificado (D-10) pero **no implementado**.

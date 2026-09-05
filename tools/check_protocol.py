@@ -83,6 +83,24 @@ def find_named_value(blob: str, name: str, code: int) -> bool:
     return False
 
 
+def find_spec_backed_name(blob: str, name: str) -> bool:
+    """True when Python obtains a named constant from the YAML-backed table.
+
+    The gateway intentionally loads message values from ``spec.message_types``
+    instead of copying numeric literals.  In that case requiring the literal
+    value beside every name would reintroduce the very duplication this gate is
+    meant to prevent.  Still require an explicit lookup for every message so a
+    missing gateway binding remains a drift failure.
+    """
+    if "spec.message_types()" not in blob:
+        return False
+    return re.search(
+        rf"^\s*TYPE_{re.escape(name)}\s*=\s*_TYPES\[['\"]{re.escape(name)}['\"]\]\s*$",
+        blob,
+        re.MULTILINE,
+    ) is not None
+
+
 def check_impl(res: Result, label: str, path: Path, suffixes: tuple[str, ...], spec: dict) -> None:
     if not path.exists():
         res.skip(f"{label}: {path.relative_to(ROOT)} does not exist yet")
@@ -94,7 +112,8 @@ def check_impl(res: Result, label: str, path: Path, suffixes: tuple[str, ...], s
 
     for msg in spec["messages"]:
         res.check(
-            find_named_value(blob, msg["name"], msg["code"]),
+            find_named_value(blob, msg["name"], msg["code"])
+            or (label == "gateway" and find_spec_backed_name(blob, msg["name"])),
             f"{label}: message {msg['name']} (0x{msg['code']:02X}) not found with its value",
         )
 

@@ -1,0 +1,52 @@
+appId: com.espstation.desktop
+productName: EspStation
+copyright: Copyright © 2026 Alan Rosas
+
+directories:
+  buildResources: build
+  output: release
+
+# electron-vite emits the app into out/; package that plus the manifest.
+files:
+  - out/**
+  - package.json
+
+npmRebuild: false
+electronLanguages:
+  - en-US
+
+linux:
+  icon: build/icons
+  category: Utility
+  # Sync the generated .desktop filename with package.json's desktopName so
+  # desktop environments associate running windows (WM_CLASS/app_id) with
+  # the launcher entry.
+  syncDesktopName: true
+  synopsis: Laboratory console for ESP32 experiments and node networks
+  description: >-
+    EspStation is a workbench for ESP32 experiments and node networks: define
+    an experiment, push it to one or many nodes, watch them live while
+    they're tethered, and walk away with the cable unplugged while the nodes
+    keep doing the job in production. This is the desktop laboratory —
+    fleet view, live telemetry, declarative experiment designer, network
+    topology, offline analysis and flashing, all talking to the local
+    espstation-gateway.
+  target:
+    - AppImage
+    - deb
+  desktop:
+    entry:
+      Name: EspStation
+      Comment: Laboratory console for ESP32 experiments and node networks
+      Categories: Utility;Network;Monitor;
+
+mac:
+  icon: build/icon.png
+  category: public.app-category.utilities
+  target:
+    - dmg
+
+win:
+  icon: build/icon.png
+  target:
+    - nsis

@@ -27,6 +27,7 @@ firmware/dependencies.lock
 firmware/test/host/build/
 firmware/test/host/*.o
 firmware/test/host/run_tests
+firmware/test/host/esps_proto_tests
 
 # Local data
 *.db

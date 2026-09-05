@@ -1,0 +1,261 @@
+/* EspStation design system — semantic tokens, reset, minimal utilities.
+   Sibling of PiStation's design system (same token *names* where they mean
+   the same thing) with its own accent: cyan/teal, an instrument-panel feel
+   rather than PiStation's mission-green. Two first-class themes (dark
+   default, light via [data-theme="light"]; see lib/resolveTheme.ts +
+   components/ThemeProvider.tsx for how "system" resolves), both WCAG AA —
+   contrast ratios for text-muted/accent were computed against the exact
+   surfaces below, not eyeballed. Sections consume tokens only — no literal
+   hex/px colors in component CSS. */
+
+:root {
+  /* ------------------------------------------------------------------ */
+  /* Typography                                                         */
+  /* ------------------------------------------------------------------ */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SFMono-Regular', 'Cascadia Code', Consolas, 'Liberation Mono', Menlo, monospace;
+
+  --text-2xs-size: 10px;
+  --text-2xs-line: 14px;
+  --text-xs-size: 11px;
+  --text-xs-line: 16px;
+  --text-sm-size: 12.5px;
+  --text-sm-line: 18px;
+  --text-md-size: 14px;
+  --text-md-line: 20px;
+  --text-lg-size: 16px;
+  --text-lg-line: 22px;
+  --text-xl-size: 20px;
+  --text-xl-line: 26px;
+  --text-2xl-size: 26px;
+  --text-2xl-line: 32px;
+
+  /* ------------------------------------------------------------------ */
+  /* Spacing / radius / motion                                          */
+  /* ------------------------------------------------------------------ */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-8: 48px;
+
+  --radius-xs: 3px;
+  --radius-sm: 5px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur-1: 90ms;
+  --dur-2: 160ms;
+  --dur-3: 240ms;
+
+  /* ------------------------------------------------------------------ */
+  /* Color primitives + semantic roles — DARK (default)                 */
+  /* ------------------------------------------------------------------ */
+  --surface-base: #0a1420;
+  --surface-1: #0e1b28;
+  --surface-2: #13202f;
+  --surface-3: #1a2a3c;
+  --surface-inset: #060d15;
+
+  --border-subtle: #1c2c3d;
+  --border-default: #26394f;
+  --border-strong: #34495f;
+  --border-focus: #22d3d8;
+
+  --text-primary: #e9f3f2;
+  --text-secondary: #9db3b0;
+  /* 4.75:1 on --surface-3, 6.03:1 on --surface-base — clears AA for the
+     small (10-11px) label roles that use this token. */
+  --text-muted: #82988f;
+  --text-disabled: #445351;
+  --text-on-accent: #04211f;
+
+  --accent: #22d3d8;
+  --accent-hover: #58e3e7;
+  --accent-muted: rgba(34, 211, 216, 0.14);
+  --accent-contrast: #04211f;
+
+  --ok-fg: #4af59a;
+  --ok-bg: rgba(74, 245, 154, 0.12);
+  --ok-border: rgba(74, 245, 154, 0.35);
+  --warn-fg: #f5c14a;
+  --warn-bg: rgba(245, 193, 74, 0.12);
+  --warn-border: rgba(245, 193, 74, 0.35);
+  --crit-fg: #f5544a;
+  --crit-bg: rgba(245, 84, 74, 0.12);
+  --crit-border: rgba(245, 84, 74, 0.35);
+  --info-fg: #4ab8f5;
+  --info-bg: rgba(74, 184, 245, 0.12);
+  --info-border: rgba(74, 184, 245, 0.35);
+
+  --shadow-1: 0 0 0 1px rgba(0, 0, 0, 0.3);
+  --shadow-2: 0 4px 16px -4px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.3);
+  --shadow-3: 0 16px 40px -12px rgba(0, 0, 0, 0.65), 0 0 28px -10px var(--accent-muted);
+
+  --ring: var(--border-focus);
+  --scrim: rgba(0, 0, 0, 0.6);
+}
+
+/* ------------------------------------------------------------------ */
+/* Color primitives + semantic roles — LIGHT                          */
+/* ------------------------------------------------------------------ */
+:root[data-theme='light'] {
+  --surface-base: #f5f9fa;
+  --surface-1: #ffffff;
+  --surface-2: #eef3f4;
+  --surface-3: #e3eaec;
+  --surface-inset: #ebf1f2;
+
+  --border-subtle: #e1e8ea;
+  --border-default: #d1dadd;
+  --border-strong: #b7c3c7;
+  --border-focus: #0e7c80;
+
+  --text-primary: #142023;
+  --text-secondary: #46595c;
+  /* 4.69:1 on --surface-3, 5.39:1 on --surface-base. */
+  --text-muted: #566a6d;
+  --text-disabled: #a7b6b8;
+  --text-on-accent: #ffffff;
+
+  --accent: #0e7c80;
+  --accent-hover: #0a6467;
+  --accent-muted: rgba(14, 124, 128, 0.1);
+  --accent-contrast: #ffffff;
+
+  --ok-fg: #0c7f4f;
+  --ok-bg: rgba(12, 127, 79, 0.08);
+  --ok-border: rgba(12, 127, 79, 0.35);
+  --warn-fg: #9a6700;
+  --warn-bg: rgba(154, 103, 0, 0.08);
+  --warn-border: rgba(154, 103, 0, 0.35);
+  --crit-fg: #cf222e;
+  --crit-bg: rgba(207, 34, 46, 0.08);
+  --crit-border: rgba(207, 34, 46, 0.35);
+  --info-fg: #0b7285;
+  --info-bg: rgba(11, 114, 133, 0.08);
+  --info-border: rgba(11, 114, 133, 0.35);
+
+  --shadow-1: 0 1px 2px rgba(16, 24, 32, 0.06);
+  --shadow-2: 0 4px 12px rgba(16, 24, 32, 0.1);
+  --shadow-3: 0 16px 32px rgba(16, 24, 32, 0.16);
+
+  --scrim: rgba(15, 20, 28, 0.4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-1: 0ms;
+    --dur-2: 0ms;
+    --dur-3: 0ms;
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Reset                                                                  */
+/* ---------------------------------------------------------------------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  color-scheme: dark;
+}
+html[data-theme='light'] {
+  color-scheme: light;
+}
+
+body {
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm-size);
+  line-height: var(--text-sm-line);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin: 0;
+}
+
+::selection {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+button {
+  background: none;
+  border: none;
+}
+
+a {
+  color: var(--accent);
+}
+
+/* Focus is only ever shown for keyboard interaction — mouse clicks never
+   show a ring, matching :focus-visible semantics used throughout ui/. */
+:focus {
+  outline: none;
+}
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--surface-base), 0 0 0 4px var(--ring);
+}
+
+.ui-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface-base);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: var(--radius-sm);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-hover);
+}

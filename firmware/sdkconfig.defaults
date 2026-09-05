@@ -1,0 +1,36 @@
+# EspStation firmware defaults. Rationale for the non-obvious ones is inline —
+# a sdkconfig without reasons is a sdkconfig nobody dares to change.
+
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=6144
+
+# The link shares UART0 with the boot ROM. Logs are wrapped into ENLP LOG
+# frames by a vprintf hook (PROTOCOL.md 2.1), so raw log level stays at info
+# and the station decides what to display.
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+CONFIG_LOG_MAXIMUM_LEVEL_DEBUG=y
+
+# The log hook parses ESP-IDF's own "<L> (<ts>) <tag>: <msg>" line back apart
+# to build a structured LOG frame; ANSI color escapes would sit in front of
+# that prefix and break the parse, so colors stay off regardless of what a
+# human-attached terminal could render.
+CONFIG_LOG_COLORS=n
+
+# Autonomy: a node in the field must reboot itself out of a hang, not wait for
+# an operator who is not there.
+CONFIG_ESP_TASK_WDT_EN=y
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=10
+CONFIG_ESP_INT_WDT=y
+CONFIG_BOOTLOADER_WDT_ENABLE=y
+
+# Brownouts are the most common field failure on a battery node; record them.
+CONFIG_ESP_BROWNOUT_DET=y
+
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+# The custom table reaches 0x3E0000 and therefore requires the esp32dev's
+# declared 4 MB flash. ESP-IDF otherwise defaults to 2 MB even though the
+# PlatformIO board manifest correctly describes a 4 MB module.
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+
+CONFIG_COMPILER_OPTIMIZATION_SIZE=y
+CONFIG_FREERTOS_HZ=1000

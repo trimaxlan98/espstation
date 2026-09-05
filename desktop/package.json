@@ -1,0 +1,46 @@
+{
+  "name": "espstation-desktop",
+  "desktopName": "espstation-desktop",
+  "version": "0.1.0",
+  "description": "EspStation — the laboratory console for ESP32 experiments and node networks",
+  "private": true,
+  "type": "module",
+  "main": "./out/main/index.js",
+  "author": {
+    "name": "Alan Rosas",
+    "email": "ingalanr@gmail.com"
+  },
+  "homepage": "https://github.com/trimaxlan98/espstation",
+  "scripts": {
+    "dev": "ELECTRON_DISABLE_SANDBOX=1 electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
+    "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "start": "ELECTRON_DISABLE_SANDBOX=1 electron-vite preview",
+    "test": "vitest run",
+    "pack": "npm run build && electron-builder --dir --config electron-builder.yml",
+    "dist": "npm run build && electron-builder --config electron-builder.yml"
+  },
+  "dependencies": {
+    "echarts": "^6.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^4.5.5"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^43.1.1",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "jsdom": "^30.0.1",
+    "typescript": "^5.6.3",
+    "vite": "^7.3.6",
+    "vitest": "^5.0.0"
+  }
+}
