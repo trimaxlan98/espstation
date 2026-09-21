@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 640" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <title id="t">Circuito de la clave Morse táctil entre dos ESP32</title>
+  <desc id="d">Placa A (llave) y placa B (receptora) conectadas por un cable de señal con resistencia de 330 ohm entre GPIO26 y GPIO25 y por un cable de GND común. La llave son dos puntas de jumper peladas entre 3V3 y GPIO13. Cada placa lleva un LED con 330 ohm en GPIO4.</desc>
+  <rect width="1000" height="640" fill="#ffffff"/>
+
+  <!-- Placas -->
+  <rect x="30" y="50" width="270" height="470" rx="10" fill="#f3f6fa" stroke="#34495e" stroke-width="2.5"/>
+  <text x="165" y="80" text-anchor="middle" font-size="17" font-weight="700" fill="#1f2d3a">PLACA A · llave</text>
+  <text x="165" y="100" text-anchor="middle" font-size="12" fill="#4a5b6b">ESP32 · /dev/ttyUSB0 · transmisor.ino</text>
+  <rect x="700" y="50" width="270" height="470" rx="10" fill="#f3f6fa" stroke="#34495e" stroke-width="2.5"/>
+  <text x="835" y="80" text-anchor="middle" font-size="17" font-weight="700" fill="#1f2d3a">PLACA B · receptora</text>
+  <text x="835" y="100" text-anchor="middle" font-size="12" fill="#4a5b6b">ESP32 · /dev/ttyUSB1 · receptor.ino</text>
+
+  <!-- Pines de A (borde derecho) -->
+  <g font-size="14" fill="#1f2d3a" text-anchor="end">
+    <text x="288" y="130" font-weight="700">3V3</text>
+    <text x="288" y="200" font-weight="700">GPIO13 · KEY_PIN</text>
+    <text x="288" y="290" font-weight="700">GPIO26 · TX_DATA</text>
+    <text x="288" y="380" font-weight="700">GPIO4 · LED</text>
+    <text x="288" y="470" font-weight="700">GND</text>
+  </g>
+  <g font-size="11.5" fill="#5b6b7b" text-anchor="end" font-style="italic">
+    <text x="288" y="216">INPUT_PULLDOWN (≈45 kΩ interno a GND)</text>
+    <text x="288" y="306">OUTPUT (nivel filtrado de la llave)</text>
+    <text x="288" y="396">OUTPUT (LED testigo)</text>
+  </g>
+  <!-- Pines de B (borde izquierdo) -->
+  <g font-size="14" fill="#1f2d3a" text-anchor="start">
+    <text x="712" y="290" font-weight="700">GPIO25 · RX_DATA</text>
+    <text x="712" y="380" font-weight="700">GPIO4 · LED</text>
+    <text x="712" y="470" font-weight="700">GND</text>
+  </g>
+  <g font-size="11.5" fill="#5b6b7b" text-anchor="start" font-style="italic">
+    <text x="712" y="306">INPUT_PULLDOWN (≈45 kΩ interno a GND)</text>
+    <text x="712" y="396">OUTPUT (nivel crudo recibido)</text>
+  </g>
+
+  <!-- 3V3 -> llave -> GPIO13 -->
+  <g stroke="#c0392b" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M300 120 H420 V140"/>
+  </g>
+  <g stroke="#2c3e50" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M420 178 V190 H300"/>
+  </g>
+  <!-- las dos puntas peladas -->
+  <circle cx="420" cy="145" r="6" fill="#c0392b" stroke="#7b241c" stroke-width="2"/>
+  <circle cx="420" cy="173" r="6" fill="#2c3e50" stroke="#111" stroke-width="2"/>
+  <path d="M414 159 h12" stroke="#e67e22" stroke-width="2.5" stroke-dasharray="3 3"/>
+  <text x="436" y="128" font-size="13" font-weight="700" fill="#7b241c">LLAVE: dos puntas peladas</text>
+  <text x="436" y="146" font-size="12" fill="#34495e">se presionan: metal con metal (≈0 Ω)</text>
+  <text x="436" y="164" font-size="12" fill="#34495e">cerrada → GPIO13 = 3,3 V</text>
+  <text x="436" y="182" font-size="12" fill="#34495e">abierta → 0 V (pull-down interno)</text>
+  <text x="436" y="200" font-size="11.5" fill="#7b241c">330 Ω en serie: opcional; no usada</text>
+
+  <!-- Señal A.GPIO26 -> 330 -> B.GPIO25 -->
+  <g stroke="#e67e22" stroke-width="3.5" fill="none" stroke-linecap="round">
+    <path d="M300 280 H455"/><path d="M535 280 H700"/>
+  </g>
+  <rect x="455" y="268" width="80" height="24" rx="4" fill="#fff" stroke="#e67e22" stroke-width="2.5"/>
+  <text x="495" y="285" text-anchor="middle" font-size="14" font-weight="700" fill="#a04000">330 Ω</text>
+  <text x="500" y="256" text-anchor="middle" font-size="13.5" font-weight="700" fill="#a04000">CABLE DE SEÑAL (jumper)</text>
+  <text x="500" y="312" text-anchor="middle" font-size="12" fill="#a04000">un solo sentido: A → B</text>
+  <text x="500" y="327" text-anchor="middle" font-size="12" fill="#a04000">limita la corriente si algo se cruza</text>
+
+  <!-- LED A: GPIO4 -> 330 -> LED -> GND -->
+  <g stroke="#2471a3" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M300 370 H340"/><path d="M400 370 H440 V392"/><path d="M440 424 V460"/>
+  </g>
+  <rect x="340" y="358" width="60" height="24" rx="4" fill="#fff" stroke="#2471a3" stroke-width="2.5"/>
+  <text x="370" y="375" text-anchor="middle" font-size="13" font-weight="700" fill="#1b4f72">330 Ω</text>
+  <path d="M428 392 H452 L440 414 Z" fill="#fff" stroke="#2471a3" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M428 416 H452" stroke="#2471a3" stroke-width="2.5"/>
+  <path d="M458 396 l10 -8 m-3 0 h3 v3 M462 406 l10 -8 m-3 0 h3 v3" stroke="#2471a3" stroke-width="1.8" fill="none"/>
+  <text x="426" y="440" font-size="12.5" font-weight="700" fill="#1b4f72" text-anchor="end">LED A</text>
+
+  <!-- LED B -->
+  <g stroke="#2471a3" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M700 370 H660"/><path d="M600 370 H560 V392"/><path d="M560 424 V460"/>
+  </g>
+  <rect x="600" y="358" width="60" height="24" rx="4" fill="#fff" stroke="#2471a3" stroke-width="2.5"/>
+  <text x="630" y="375" text-anchor="middle" font-size="13" font-weight="700" fill="#1b4f72">330 Ω</text>
+  <path d="M548 392 H572 L560 414 Z" fill="#fff" stroke="#2471a3" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M548 416 H572" stroke="#2471a3" stroke-width="2.5"/>
+  <path d="M578 396 l10 -8 m-3 0 h3 v3 M582 406 l10 -8 m-3 0 h3 v3" stroke="#2471a3" stroke-width="1.8" fill="none"/>
+  <text x="574" y="440" font-size="12.5" font-weight="700" fill="#1b4f72" text-anchor="start">LED B</text>
+
+  <!-- GND común -->
+  <path d="M300 460 H700" stroke="#1c2833" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="440" cy="460" r="5" fill="#1c2833"/><circle cx="560" cy="460" r="5" fill="#1c2833"/>
+  <text x="500" y="490" text-anchor="middle" font-size="15" font-weight="800" fill="#1c2833">GND COMÚN (cable obligatorio)</text>
+  <text x="500" y="508" text-anchor="middle" font-size="12" fill="#1c2833">misma referencia de 0 V para las dos placas</text>
+
+  <!-- Leyenda -->
+  <g font-size="12.5" fill="#1f2d3a">
+    <line x1="40" y1="560" x2="80" y2="560" stroke="#c0392b" stroke-width="3"/><text x="88" y="565">3V3 (alimenta la llave)</text>
+    <line x1="270" y1="560" x2="310" y2="560" stroke="#e67e22" stroke-width="3.5"/><text x="318" y="565">señal de datos (330 Ω en serie)</text>
+    <line x1="560" y1="560" x2="600" y2="560" stroke="#1c2833" stroke-width="6"/><text x="608" y="565">GND común</text>
+    <line x1="720" y1="560" x2="760" y2="560" stroke="#2471a3" stroke-width="3"/><text x="768" y="565">LED testigo (GPIO4 + 330 Ω)</text>
+  </g>
+  <text x="500" y="600" text-anchor="middle" font-size="12" fill="#5b6b7b">Valores de diseño; no se midió ninguna tensión ni corriente con instrumento en este banco.</text>
+  <text x="500" y="620" text-anchor="middle" font-size="12" fill="#5b6b7b">Todo a 3,3 V, sin adaptador de nivel. Prohibido GPIO12 (pin de arranque).</text>
+</svg>

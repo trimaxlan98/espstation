@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clave Morse · visor y traductor</title>
+<style>
+  :root{
+    --bg:#f5f7fa; --card:#ffffff; --ink:#1c2833; --mute:#5b6b7b; --line:#d5dde6;
+    --dot:#2471a3; --dash:#e67e22; --ok:#1e8449; --bad:#c0392b; --pal:#8e44ad; --acc:#1f6f8b;
+    --bit1:#1f6f8b; --bit1ink:#fff; --bit0:#e9eef3; --bit0ink:#5b6b7b; --cons:#0f1720; --consink:#d7e3ee;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#10161d; --card:#18212b; --ink:#e6edf3; --mute:#9db0c1; --line:#2b3947;
+      --dot:#5dade2; --dash:#f5a04a; --ok:#58d68d; --bad:#ec7063; --pal:#bb8fce; --acc:#5dbcd8;
+      --bit1:#2f8fae; --bit0:#22303d; --bit0ink:#9db0c1; --cons:#0a0f14; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  header{padding:18px 20px 0;max-width:1180px;margin:0 auto}
+  h1{margin:0;font-size:22px} .sub{color:var(--mute);margin:2px 0 12px;font-size:14px}
+  nav{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+  nav button{font:inherit;border:1px solid var(--line);border-bottom:none;background:transparent;color:var(--mute);
+    padding:8px 14px;border-radius:8px 8px 0 0;cursor:pointer}
+  nav button[aria-selected=true]{background:var(--card);color:var(--ink);font-weight:650}
+  main{max-width:1180px;margin:0 auto;padding:16px 20px 60px}
+  section{display:none} section.on{display:block}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:0 0 14px}
+  .card h2{margin:0 0 8px;font-size:17px} .card h3{margin:12px 0 6px;font-size:15px}
+  .row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+  .mute{color:var(--mute)} .small{font-size:12.5px}
+  label{font-size:13px;color:var(--mute)}
+  input[type=text],input[type=number]{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+  input[type=number]{width:84px} input[type=text]{min-width:260px}
+  button.b{font:inherit;padding:7px 14px;border:1px solid var(--acc);background:var(--acc);color:#fff;border-radius:7px;cursor:pointer}
+  button.b.sec{background:transparent;color:var(--acc)} button.b:disabled{opacity:.5;cursor:default}
+  pre.cons{background:var(--cons);color:var(--consink);padding:12px 14px;border-radius:8px;margin:6px 0 0;
+    font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;min-height:64px;max-height:340px;overflow:auto;white-space:pre-wrap}
+  pre.cons .let{color:#7fe3a0} pre.cons .pal{color:#d7a8ee} pre.cons .sd{color:#6cc2f0} pre.cons .sr{color:#f5b061} pre.cons .bad{color:#ff8a80}
+  .cards{display:flex;gap:10px;flex-wrap:wrap}
+  .ch{border:1px solid var(--line);border-radius:9px;padding:8px 10px;min-width:150px;background:var(--bg)}
+  .ch .big{font-size:26px;font-weight:700;line-height:1} .ch .cod{margin:6px 0;height:14px;display:flex;gap:5px;align-items:center}
+  .dot{display:inline-block;width:11px;height:11px;border-radius:50%;background:var(--dot)}
+  .dash{display:inline-block;width:32px;height:11px;border-radius:6px;background:var(--dash)}
+  .bits{display:inline-flex;gap:2px} .bits i{font:normal 12px ui-monospace,Menlo,monospace;width:19px;height:22px;display:grid;place-items:center;border-radius:4px}
+  .bits i.b1{background:var(--bit1);color:var(--bit1ink)} .bits i.b0{background:var(--bit0);color:var(--bit0ink)}
+  .ascii{font:12px ui-monospace,Menlo,monospace;color:var(--mute);margin-top:4px}
+  .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+  svg text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .badge{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:650;border:1px solid}
+  .badge.ok{color:var(--ok);border-color:var(--ok)} .badge.bad{color:var(--bad);border-color:var(--bad)} .badge.mid{color:var(--mute);border-color:var(--line)}
+  table{border-collapse:collapse;width:100%;font-size:13.5px} th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+  th{background:var(--bg)} td.k{white-space:nowrap;font-weight:600}
+  .grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px} @media (max-width:820px){.grid2{grid-template-columns:1fr}}
+  .stat{display:flex;gap:18px;flex-wrap:wrap} .stat div{min-width:120px} .stat b{display:block;font-size:19px}
+  .key{width:100%;padding:26px 10px;font-size:18px;border-radius:12px;border:2px solid var(--acc);background:var(--bg);color:var(--ink);cursor:pointer;user-select:none;touch-action:manipulation}
+  .key.down{background:var(--acc);color:#fff}
+  .led{display:inline-block;width:16px;height:16px;border-radius:50%;background:#4a5560;border:2px solid #2a323a;vertical-align:-3px}
+  .led.on{background:#ffd54a;border-color:#e0a800;box-shadow:0 0 10px 3px #ffd54a99}
+  .tabs2{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .tabs2 button{font:inherit;padding:5px 12px;border:1px solid var(--line);border-radius:7px;background:transparent;color:var(--ink);cursor:pointer}
+  .tabs2 button[aria-pressed=true]{background:var(--acc);color:#fff;border-color:var(--acc)}
+  .tabs2 button[aria-pressed=true] .badge{color:#fff;border-color:#fff}
+  .warn{border-left:4px solid var(--dash);background:var(--bg);padding:8px 12px;border-radius:0 8px 8px 0;margin:8px 0;font-size:14px}
+  .gndsvg .flujo{stroke-dasharray:10 8;animation:flujo .9s linear infinite} @keyframes flujo{to{stroke-dashoffset:-18}}
+  @media (prefers-reduced-motion: reduce){.gndsvg .flujo{animation:none}}
+  #circuito svg{width:100%;height:auto;border:1px solid var(--line);border-radius:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Clave Morse táctil entre dos ESP32 · visor y traductor</h1>
+  <p class="sub">Muestra <b>cómo viaja cada punto y raya</b>, cómo se traduce a letra y a su byte ASCII en binario, el <b>circuito real en directo</b> (pestaña 2, con el puente serie) y la <b>evidencia real</b> del banco.
+    Las pestañas 1, 3 y 4 decodifican en el navegador con un port del <code>receptor.ino</code> verificado contra el sketch.</p>
+  <nav role="tablist" id="nav">
+    <button role="tab" data-tab="enviar">1 · Cómo se envía</button>
+    <button role="tab" data-tab="vivo">2 · En vivo (circuito real)</button>
+    <button role="tab" data-tab="teclear">3 · Teclear (simulado)</button>
+    <button role="tab" data-tab="evid">4 · Evidencia (tandas 1–4)</button>
+    <button role="tab" data-tab="conex">5 · Conexión y circuito</button>
+  </nav>
+</header>
+<main>
+
+<!-- ============ 1. CÓMO SE ENVÍA ============ -->
+<section id="tab-enviar">
+  <div class="card">
+    <h2>De texto a señal: puntos, rayas y binario</h2>
+    <p class="mute small" style="margin-top:0">Escribe un texto. Cada carácter se traduce a Morse (puntos y rayas), y B lo devuelve como <b>letra + su byte ASCII de 8 bits</b>. La señal es el nivel de <b>GPIO13 → GPIO26 → GPIO25</b>: <b>1 mientras la llave está cerrada</b>, 0 en reposo. Es Morse <em>ideal</em> (punto = 1 u, raya = 3 u, pausa dentro de la letra = 1 u, entre letras = 3 u, entre palabras = 7 u): una persona no lo teclea así, ver pestaña 4.</p>
+    <div class="row">
+      <div><label for="txt">Texto</label><br><input type="text" id="txt" value="SOS" maxlength="24" autocomplete="off"></div>
+      <div><label for="unidad">Unidad u (ms)</label><br><input type="number" id="unidad" value="120" min="30" max="400" step="10"></div>
+      <div><label for="vel">Velocidad de la animación</label><br>
+        <select id="vel" style="font:inherit;padding:6px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink)"><option value="1">1× (tiempo real)</option><option value="2" selected>2×</option><option value="4">4×</option></select></div>
+      <div style="align-self:end"><button class="b" id="play">▶ Reproducir</button> <button class="b sec" id="stop">■ Detener</button></div>
+    </div>
+  </div>
+  <div class="card"><h2>Traducción carácter a carácter</h2><div class="cards" id="cartas"></div></div>
+  <div class="card">
+    <h2>La señal en el cable <span class="mute small" id="ledtxt"></span></h2>
+    <div class="row small mute" style="margin-bottom:6px">
+      <span>LED de A y de B: <span class="led" id="led1"></span></span>
+      <span><span class="dot"></span> punto (1 u)</span><span><span class="dash" style="width:24px"></span> raya (3 u)</span>
+      <span>verde: letra decodificada · morado: fin de palabra</span>
+    </div>
+    <div class="scroll"><div id="senal1"></div></div>
+  </div>
+  <div class="card"><h2>Lo que imprimiría la placa B por serie</h2>
+    <p class="mute small" style="margin:0">Umbrales derivados de la unidad: <span id="umb1"></span></p>
+    <pre class="cons" id="cons1"></pre></div>
+</section>
+
+<!-- ============ 2. EN VIVO ============ -->
+<section id="tab-vivo">
+  <div class="card">
+    <div class="row">
+      <span id="vPuente" class="badge mid">puente: sin conexión</span>
+      <span id="vA" class="badge mid">A (llave): —</span>
+      <span id="vB" class="badge mid">B (receptor): —</span>
+      <span id="vModo" class="badge mid" style="display:none"></span>
+    </div>
+    <div id="vSinPuente" class="warn" style="margin-bottom:0">
+      <b>El navegador no puede leer el puerto serie por sí solo.</b> Con las placas conectadas, ejecuta el puente en una terminal y abre la dirección que imprime:
+      <pre class="cons" style="min-height:0;margin:6px 0">python3 herramientas/puente_serie.py --a /dev/ttyUSB0 --b /dev/ttyUSB1
+# abrir  http://127.0.0.1:8765/#vivo</pre>
+      Sin placas (repite una tanda real): <code>python3 herramientas/puente_serie.py --demo 3</code>
+      <span id="vUrlFila" style="display:none"><br>Estás en un archivo local: dirección del puente <input type="text" id="vUrl" value="http://127.0.0.1:8765" style="min-width:230px"> <button class="b sec" id="vReconectar">Conectar</button> <span class="mute small">(solo lectura; para mandar comandos abre la dirección del puente)</span></span>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>El circuito, ahora mismo</h2>
+      <div class="row" style="gap:26px">
+        <div class="small mute">Llave (placa A · GPIO13)<br><span class="led" id="vLedA"></span> <b id="vNivelA" style="font-size:20px;color:var(--ink)">—</b></div>
+        <div class="small mute">Último símbolo recibido por B<br><b id="vSim" style="font-size:24px;color:var(--ink)">—</b> <span id="vSimT"></span></div>
+        <div class="small mute">Último pulso (medido por A)<br><b id="vPulso" style="font-size:20px;color:var(--ink)">—</b></div>
+      </div>
+      <table style="margin-top:10px">
+        <tr><th></th><th>flancos</th><th>otros contadores</th></tr>
+        <tr><td class="k">A · llave</td><td id="vcA">—</td><td class="small mute">crudos = cambios del pin antes del antirrebote; aceptados = los que pasan al cable</td></tr>
+        <tr><td class="k">B · receptor</td><td id="vcB1">—</td><td id="vcB2" class="small mute">—</td></tr>
+      </table>
+      <h3>Umbrales de la placa B <span class="mute small" id="vUmbTxt"></span></h3>
+      <div class="row">
+        <div><label>p</label><br><input type="number" id="vp"> ms</div><div><label>l</label><br><input type="number" id="vl"> ms</div>
+        <div><label>w</label><br><input type="number" id="vw"> ms</div><div><label>d (B)</label><br><input type="number" id="vd"> ms</div>
+        <div><label>d (A)</label><br><input type="number" id="vdA"> ms</div>
+      </div>
+      <div class="tabs2" style="margin:10px 0 0">
+        <button id="vAplicar">Aplicar en las placas</button><button id="vEstado">Pedir estado (r)</button><button id="vCeros">Contadores a cero</button>
+      </div>
+      <p class="mute small" style="margin:6px 0 0" id="vCmdNota"></p>
+    </div>
+    <div class="card">
+      <h2>Traducción hecha por el circuito (placa B)</h2>
+      <p class="mute small" style="margin:0 0 6px">Esto es lo que <b>imprime la placa B</b>, no una simulación del navegador.</p>
+      <div style="font-size:30px;font-weight:700;min-height:42px;letter-spacing:.08em" id="vTexto">&nbsp;</div>
+      <div class="cards" id="vCartas" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between"><h2 style="margin:0">Señal en directo</h2>
+      <div class="row" style="gap:8px"><label for="vVentana">ventana</label>
+        <select id="vVentana" style="font:inherit;padding:5px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink)"><option value="10000">10 s</option><option value="20000" selected>20 s</option><option value="60000">60 s</option></select>
+        <div class="tabs2" style="margin:0"><button id="vPausa" aria-pressed="false">Pausar</button><button id="vBorrar">Borrar pantalla</button></div></div></div>
+    <p class="mute small" style="margin:4px 0 6px">Trazo: nivel de la llave que envía A (1 = presionada). Marcas de color y letras: lo que <b>B decodificó</b>. El borde derecho es «ahora».</p>
+    <div class="scroll"><div id="vSenal"></div></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card"><h2>Serie de A (llave)</h2><pre class="cons" id="vConsA"></pre></div>
+    <div class="card"><h2>Serie de B (receptor)</h2><pre class="cons" id="vConsB"></pre></div>
+  </div>
+</section>
+
+<!-- ============ 3. TECLEAR ============ -->
+<section id="tab-teclear">
+  <div class="grid2">
+    <div class="card">
+      <h2>Teclea tú (simulador con el teclado)</h2>
+      <p class="mute small" style="margin-top:0"><b>Esto es una simulación en el navegador, no el circuito.</b> Para ver la llave y las placas reales funcionando, usa la pestaña <a href="#vivo" onclick="document.querySelector('[data-tab=vivo]').click();return false">2 · En vivo</a>. Mantén pulsado el botón (o la <b>barra espaciadora</b>) como si fuera la llave. Se decodifica con las mismas reglas que <code>receptor.ino</code>. Punto o raya según cuánto dures pulsado; letra y palabra según el silencio.</p>
+      <button class="key" id="key" aria-label="Llave: mantén pulsado">Mantén pulsado aquí · o barra espaciadora <span class="led" id="led2"></span></button>
+      <div class="row" style="margin-top:10px">
+        <div><label>punto/raya p</label><br><input type="number" id="kp" value="170"> ms</div>
+        <div><label>letra l</label><br><input type="number" id="kl" value="930"> ms</div>
+        <div><label>palabra w</label><br><input type="number" id="kw" value="3000"> ms</div>
+        <div><label>ruido d</label><br><input type="number" id="kd" value="15"> ms</div>
+      </div>
+      <div class="tabs2" style="margin-top:10px">
+        <button id="pre1" aria-pressed="false">Arranque (300/700/1800/15)</button>
+        <button id="pre2" aria-pressed="true">Calibrado (170/930/3000/15)</button>
+        <button id="ejemplo">Cargar un SOS real (tanda 3)</button>
+        <button id="borrar">Borrar</button>
+      </div>
+      <p class="mute small" style="margin-bottom:0">Último pulso: <b id="ultimo">—</b></p>
+    </div>
+    <div class="card">
+      <h2>Traducción en vivo</h2>
+      <div style="font-size:30px;font-weight:700;min-height:42px;letter-spacing:.08em" id="texto2">&nbsp;</div>
+      <div class="cards" id="cartas2" style="margin-top:8px"></div>
+    </div>
+  </div>
+  <div class="card"><h2>Señal (lo que vería B)</h2><div class="scroll"><div id="senal2"></div></div></div>
+  <div class="card"><h2>Salida serie de B</h2><pre class="cons" id="cons2"></pre></div>
+</section>
+
+<!-- ============ 4. EVIDENCIA ============ -->
+<section id="tab-evid">
+  <div class="card">
+    <h2>Evidencia real del banco (2026-09-21)</h2>
+    <p class="mute small" style="margin-top:0">Cada tanda son 3 «SOS» tecleados a mano en la placa A y decodificados por la placa B. Los pulsos y silencios salen de los logs de B (<code>evidencia/*.log</code>) y los datos se comprueban contra los contadores de la placa al generarlos. <b>Solo un operador y cuatro tandas: no es una tasa de acierto.</b></p>
+    <div class="tabs2" id="selTanda"></div>
+    <div id="resumenT"></div>
+  </div>
+  <div class="card"><h2>La señal de la tanda, con lo que decodificó la placa</h2>
+    <p class="mute small" style="margin:0 0 6px">Las pausas de más de 6 s se recortan (marca ↔). Punto = azul, raya = naranja. Bajo cada grupo: la letra que imprimió B y su byte.</p>
+    <div class="scroll"><div id="senal3"></div></div></div>
+  <div class="grid2">
+    <div class="card"><h2>Duración de cada pulso frente a <code>p</code></h2><div class="scroll"><div id="barP"></div></div>
+      <p class="mute small" style="margin-bottom:0">Por debajo de la línea → punto; por encima → raya. Si un pulso está cerca de la línea, es fácil que cambie de clase.</p></div>
+    <div class="card"><h2>Cada pausa frente a <code>l</code> y <code>w</code> (escala log)</h2><div class="scroll"><div id="barS"></div></div>
+      <p class="mute small" style="margin-bottom:0">Gris: pausa dentro de una letra. Verde: entre letras. Morado: entre palabras. Una pausa larga <em>dentro</em> de una letra la parte en dos.</p></div>
+  </div>
+  <div class="card">
+    <h2>Salida serie: placa real frente al visor</h2>
+    <div class="grid2">
+      <div><b>Lo que imprimió la placa B</b> (log real)<pre class="cons" id="consPlaca"></pre></div>
+      <div><b>Re-decodificado en el visor</b> <span id="badgeVisor"></span><pre class="cons" id="consVisor"></pre></div>
+    </div>
+    <h3>¿Y con otros umbrales? (simulación sobre estos mismos pulsos reales)</h3>
+    <div class="row">
+      <div><label>p</label><br><input type="number" id="ep"> ms</div><div><label>l</label><br><input type="number" id="el"> ms</div>
+      <div><label>w</label><br><input type="number" id="ew"> ms</div><div><label>d</label><br><input type="number" id="ed"> ms</div>
+      <div class="tabs2" style="margin:0;align-self:end"><button id="eplaca">Los de la placa</button><button id="efinal">Finales (170/930/3000/15)</button></div>
+    </div>
+    <p class="mute small" style="margin-bottom:0">Esto <b>no es una medición nueva</b>: muestra qué habría decodificado la misma señal con otros umbrales. La salida de la izquierda es la real.</p>
+  </div>
+</section>
+
+<!-- ============ 5. CONEXIÓN ============ -->
+<section id="tab-conex">
+  <div class="card"><h2>Circuito</h2><div id="circuito"></div>
+    <p class="mute small" style="margin-bottom:0">Mismo diagrama que <code>docs/circuito.svg</code> (ver también la pestaña 2 para el circuito en funcionamiento). Todo a 3,3 V; las dos placas también van al PC por USB (alimentación y puerto serie a 115200).</p></div>
+
+  <div class="card"><h2>Qué es cada cable y por qué está ahí</h2>
+    <table>
+      <tr><th>#</th><th>Desde → hasta</th><th>Elemento</th><th>Por qué</th></tr>
+      <tr><td>1</td><td class="k">A · 3V3 → punta pelada 1</td><td>jumper</td><td>Lleva 3,3 V a un lado de la llave. Cuando las puntas se tocan, esos 3,3 V llegan a GPIO13.</td></tr>
+      <tr><td>2</td><td class="k">punta pelada 2 → A · GPIO13</td><td>jumper</td><td>Es la entrada de la llave (<code>KEY_PIN</code>, <code>INPUT_PULLDOWN</code>). Abierta lee 0 (pull-down); cerrada lee 1.</td></tr>
+      <tr><td>3</td><td class="k">A · GPIO26 → B · GPIO25</td><td>jumper + <b>330 Ω</b></td><td>La señal: A repite el nivel de la llave y B lo mide. Un solo sentido (salida de A → entrada de B). Los 330 Ω limitan la corriente si por error se unieran dos salidas o mientras una placa arranca.</td></tr>
+      <tr><td>4</td><td class="k">A · GND ↔ B · GND</td><td>jumper</td><td><b>GND común.</b> Da a las dos placas el mismo 0 V de referencia; sin él, «1» y «0» no significan lo mismo para A y para B (ver abajo).</td></tr>
+      <tr><td>5</td><td class="k">A · GPIO4 → 330 Ω → LED → GND</td><td>resistencia + LED</td><td>Testigo: en A muestra el estado filtrado de la llave. La resistencia fija la corriente del LED.</td></tr>
+      <tr><td>6</td><td class="k">B · GPIO4 → 330 Ω → LED → GND</td><td>resistencia + LED</td><td>Testigo: en B muestra el nivel que llega por el cable; si los dos LED parpadean a la vez, el enlace funciona.</td></tr>
+      <tr><td>7</td><td class="k">A y B ↔ PC</td><td>cable USB</td><td>Alimentan cada placa y llevan el puerto serie (115200 baudios) por donde se ve el texto decodificado.</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Por qué un GND común (lo más importante del montaje)</h2>
+    <p style="margin-top:0">Una tensión no existe «sola»: es la diferencia entre <b>dos puntos</b>. Cuando A pone 1 en GPIO26 está poniendo 3,3 V <b>respecto a su propio GND</b>. La placa B mide GPIO25 <b>respecto a su propio GND</b>. Si los dos GND no están unidos, B no tiene contra qué comparar esos 3,3 V y no hay camino de retorno para la corriente: el lazo no se cierra.</p>
+    <label style="display:inline-flex;gap:8px;align-items:center;font-size:14px;color:var(--ink)"><input type="checkbox" id="gndchk" checked> Cable de GND conectado</label>
+    <div class="gndsvg" id="gndsvg" style="margin-top:8px"></div>
+    <p id="gndtexto" style="margin-bottom:6px"></p>
+    <div class="warn"><b>Ojo, para no engañarse:</b> en este banco las dos placas cuelgan del <b>mismo PC por USB</b>, y el USB une sus masas por otra ruta (larga y con ruido). Por eso, <b>quitar el cable de GND probablemente no haría fallar el montaje aquí, y no se probó</b>. Que «parezca funcionar» sin el cable no lo hace correcto: dependería de un camino no controlado y fallaría con placas alimentadas por separado (batería, fuentes distintas) o al mover un cable. Esta explicación es de diseño; <b>no se midió</b> ningún caso sin GND.</div>
+  </div>
+
+  <div class="grid2">
+    <div class="card"><h2>Resistencias de 330 Ω</h2>
+      <table>
+        <tr><th>Dónde</th><th>Para qué</th><th>Cuenta</th></tr>
+        <tr><td>Señal A→B</td><td>Limita la corriente si dos salidas se unen por error o mientras una placa arranca.</td><td>3,3 V / 330 Ω ≈ <b>10 mA</b> como máximo</td></tr>
+        <tr><td>LED (×2)</td><td>Fija la corriente del LED.</td><td>(3,3 − ≈2 V) / 330 Ω ≈ <b>4 mA</b> (el ≈2 V del LED es un valor típico supuesto, no medido)</td></tr>
+        <tr><td>¿Frena la señal?</td><td>No: los tiempos de Morse son de milisegundos.</td><td>330 Ω × unos pF de un pin ≈ <b>nanosegundos</b></td></tr>
+        <tr><td>Llave</td><td>No lleva; opcional.</td><td>Cerrada, la llave no limita nada: por eso el pin <b>nunca</b> debe configurarse como salida.</td></tr>
+      </table>
+      <p class="mute small" style="margin-bottom:0">Son cálculos de diseño, no medidas con instrumento.</p></div>
+    <div class="card"><h2>Por qué <code>INPUT_PULLDOWN</code> y metal contra metal</h2>
+      <p style="margin-top:0"><b>Pull-down (≈45 kΩ interno a GND):</b> una entrada sin resistencia «flota»: no vale 0, lee lo que la interferencia quiera. Con pull-down, llave abierta → 0 <b>definido</b>. <b>Medido en este banco (práctica previa N1, cuya evidencia no forma parte de este paquete):</b> con el cable de señal suelto, la entrada quedó en 0 estable con pull-down y oscilaba a ≈120 cambios/s sin él (hipótesis: interferencia de red; no se midió con instrumento).</p>
+      <p><b>Puntas de jumper, no el dedo:</b> la piel es una resistencia variable (≈1 kΩ mojada a &gt;500 kΩ seca) que forma un divisor contra los ≈45 kΩ del pull-down: entre unos ≈15 kΩ y ≈135 kΩ de piel el pin cae en la zona ambigua entre 0 y 1 (suponiendo los umbrales habituales ≈0,25·VDD y ≈0,75·VDD: <b>comprobar en el datasheet</b>; no se midieron aquí, y los ≈45 kΩ son el valor nominal, tampoco medido). Con metal contra metal el contacto es ≈0 Ω y la llave se comporta como un pulsador.</p></div>
+  </div>
+
+  <div class="card"><h2>Por qué esos pines</h2>
+    <table>
+      <tr><th>Pin</th><th>Uso</th><th>Motivo</th></tr>
+      <tr><td class="k">GPIO13 (A)</td><td>Llave</td><td>No es pin de arranque; admite pull-down interno. Distinto de 25/26 para no desmontar otras prácticas.</td></tr>
+      <tr><td class="k">GPIO26 (A) → GPIO25 (B)</td><td>Señal</td><td>Salida en A y entrada en B; los mismos que el resto de prácticas de enlace del banco.</td></tr>
+      <tr><td class="k">GPIO4 (A y B)</td><td>LED</td><td>Salida libre y sin función de arranque.</td></tr>
+      <tr><td class="k">GPIO12</td><td><b>prohibido</b></td><td>Pin de arranque (MTDI): un nivel alto en el reset puede impedir que la placa arranque.</td></tr>
+    </table></div>
+</section>
+</main>
+
+<script src="datos.js"></script>
+<script src="decodificador.js"></script>
+<script>
+(function () {
+"use strict";
+const M = window.Morse;
+const $ = (s, r) => (r || document).querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmtMs = (t) => (t >= 10000 ? (t / 1000).toFixed(1) + " s" : Math.round(t) + " ms");
+
+/* ---------- piezas de presentación ---------- */
+const bitsHTML = (bin) => '<span class="bits">' + [...bin].map((b) => `<i class="b${b}">${b}</i>`).join("") + "</span>";
+const morseHTML = (m) => [...m].map((x) => (x === "." ? '<span class="dot"></span>' : '<span class="dash"></span>')).join("");
+function consolaHTML(lineas, ref) {
+  return lineas.map((t, i) => {
+    let cl = t === "." ? "sd" : t === "-" ? "sr" : t === "[palabra]" ? "pal" : t.startsWith("[letra: ?]") ? "bad" : "let";
+    if (ref && ref[i] !== t) cl = "bad";
+    return `<span class="${cl}">${esc(t)}</span>`;
+  }).join("\n");
+}
+function cartaLetra(ch, extra) {
+  const m = M.MORSE[ch];
+  if (!m) return "";
+  const b = M.bin8(ch);
+  return `<div class="ch"><div class="big">${esc(ch)}</div><div class="cod">${morseHTML(m)}</div>
+    <div class="ascii">ASCII ${ch.charCodeAt(0)} · 0x${ch.charCodeAt(0).toString(16).toUpperCase()}</div>${bitsHTML(b)}${extra || ""}</div>`;
+}
+function cartaDesdeEvento(e) {
+  if (e.letra === "?") return `<div class="ch"><div class="big" style="color:var(--bad)">?</div><div class="cod">${morseHTML(e.morse)}</div><div class="ascii">sin equivalente en la tabla</div></div>`;
+  return cartaLetra(e.letra);
+}
+
+/* ---------- dibujo de la señal (SVG en texto) ---------- */
+function senalSVG(pulsos, ev, o) {
+  o = Object.assign({ px: 0.12, gapMax: null, finExtra: 800, mostrarMs: true, gapU: null, enCurso: null, altoBits: true, tFin: null }, o || {});
+  const padL = 26, y1 = 58, y0 = 128, H = 210;
+  const comp = [];
+  if (o.gapMax != null) {
+    for (let i = 1; i < pulsos.length; i++) {
+      const f = pulsos[i - 1].t0 + pulsos[i - 1].dur, g = pulsos[i].t0 - f;
+      if (g > o.gapMax) comp.push({ a: f + o.gapMax, b: pulsos[i].t0, g });
+    }
+  }
+  const td = (t) => { let r = 0; for (const c of comp) { if (t >= c.b) r += c.b - c.a; else if (t > c.a) r += t - c.a; } return t - r; };
+  const X = (t) => padL + td(t) * o.px;
+  const todos = o.enCurso ? pulsos.concat([o.enCurso]) : pulsos;
+  const ultimo = todos.length ? todos[todos.length - 1].t0 + todos[todos.length - 1].dur : 0;
+  const tFin = o.tFin != null ? o.tFin : ultimo + o.finExtra;
+  const W = Math.max(320, Math.ceil(X(tFin) + 30));
+  const clase = {};
+  ev.forEach((e) => { if (e.k === "sim") clase[e.idx] = e.texto; });
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Señal del cable: 1 con la llave cerrada, 0 en reposo">`;
+  s += `<line x1="${padL}" y1="${y0}" x2="${W - 10}" y2="${y0}" stroke="var(--line)" stroke-width="1.5"/>`;
+  s += `<text x="4" y="${y0 + 4}" font-size="10" fill="var(--mute)">0</text><text x="4" y="${y1 + 4}" font-size="10" fill="var(--mute)">1</text>`;
+  s += `<line x1="${padL}" y1="${y1}" x2="${W - 10}" y2="${y1}" stroke="var(--line)" stroke-dasharray="2 4"/>`;
+  let d = `M${padL} ${y0}`;
+  todos.forEach((p) => { d += ` H${X(p.t0).toFixed(1)} V${y1} H${X(p.t0 + p.dur).toFixed(1)} V${y0}`; });
+  d += ` H${X(tFin).toFixed(1)}`;
+  todos.forEach((p, i) => {
+    const c = clase[i] === "." ? "var(--dot)" : clase[i] === "-" ? "var(--dash)" : (o.enCurso && i === pulsos.length ? "var(--acc)" : "var(--mute)");
+    const x = X(p.t0), w = Math.max(1.5, p.dur * o.px);
+    s += `<rect x="${x.toFixed(1)}" y="${y1}" width="${w.toFixed(1)}" height="${y0 - y1}" fill="${c}" opacity=".22"/>`;
+    const cx = x + w / 2;
+    if (clase[i] === ".") s += `<circle cx="${cx.toFixed(1)}" cy="${y1 - 16}" r="4.5" fill="${c}"/>`;
+    else if (clase[i] === "-") s += `<rect x="${(cx - 11).toFixed(1)}" y="${y1 - 20}" width="22" height="8" rx="4" fill="${c}"/>`;
+    if (o.mostrarMs && w >= 7) s += `<text x="${cx.toFixed(1)}" y="${y1 - 28}" font-size="9.5" text-anchor="middle" fill="var(--mute)">${Math.round(p.dur)}</text>`;
+  });
+  s += `<path d="${d}" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round"/>`;
+  if (o.gapU) for (let i = 1; i < pulsos.length; i++) {
+    const f = pulsos[i - 1].t0 + pulsos[i - 1].dur, g = pulsos[i].t0 - f, m = (X(f) + X(pulsos[i].t0)) / 2;
+    if ((pulsos[i].t0 - f) * o.px > 14) s += `<text x="${m.toFixed(1)}" y="${y0 - 6}" font-size="9.5" text-anchor="middle" fill="var(--mute)">${Math.round((g / o.gapU) * 10) / 10}u</text>`;
+  }
+  comp.forEach((c) => { const x = X(c.a); s += `<text x="${(x - 3).toFixed(1)}" y="${y0 - 8}" font-size="13" text-anchor="middle" fill="var(--mute)">↔</text><text x="${(x - 3).toFixed(1)}" y="${y0 + 10}" font-size="9.5" text-anchor="middle" fill="var(--mute)">${(c.g / 1000).toFixed(0)} s</text>`; });
+  let alt = 0;
+  ev.forEach((e) => {
+    if (e.k === "let" && e.indices.length) {
+      const a = pulsos[e.indices[0]], b = pulsos[e.indices[e.indices.length - 1]];
+      const xa = X(a.t0), xb = X(b.t0 + b.dur), cx = (xa + xb) / 2, ok = e.letra !== "?";
+      const col = ok ? "var(--ok)" : "var(--bad)", yy = y0 + 26 + (alt++ % 2) * (o.altoBits ? 22 : 0);
+      s += `<path d="M${xa.toFixed(1)} ${y0 + 9} v5 H${xb.toFixed(1)} v-5" fill="none" stroke="${col}" stroke-width="2"/>`;
+      s += `<text x="${cx.toFixed(1)}" y="${yy + 2}" font-size="20" font-weight="700" text-anchor="middle" fill="${col}">${esc(e.letra)}</text>`;
+      s += `<text x="${cx.toFixed(1)}" y="${yy + 15}" font-size="10" font-family="ui-monospace,Menlo,monospace" text-anchor="middle" fill="${col}">${ok ? e.bin : esc(e.morse)}</text>`;
+    } else if (e.k === "pal") {
+      const x = X(e.t);
+      s += `<line x1="${x.toFixed(1)}" y1="14" x2="${x.toFixed(1)}" y2="${H - 8}" stroke="var(--pal)" stroke-dasharray="4 4"/><text x="${(x + 4).toFixed(1)}" y="24" font-size="10.5" fill="var(--pal)">palabra</text>`;
+    }
+  });
+  s += `<line id="ph" x1="0" y1="8" x2="0" y2="${H - 8}" stroke="var(--bad)" stroke-width="1.5" style="display:none"/>`;
+  s += `<line x1="${padL}" y1="${H - 10}" x2="${padL + 1000 * o.px}" y2="${H - 10}" stroke="var(--mute)" stroke-width="2"/><text x="${padL + 1000 * o.px + 6}" y="${H - 6}" font-size="10" fill="var(--mute)">= 1 s</text>`;
+  return { svg: s + "</svg>", X, W };
+}
+
+/* ============ 1. CÓMO SE ENVÍA ============ */
+let anim = null;
+function tabEnviar() {
+  const txt = $("#txt").value.toUpperCase().replace(/[^A-Z0-9 ]/g, "").slice(0, 24) || "SOS";
+  const u = Math.max(30, Math.min(400, +$("#unidad").value || 120));
+  const pu = M.textoAPulsos(txt, u).map((p) => ({ t0: p.t0, dur: p.dur }));
+  const um = { p: 2 * u, l: 2 * u, w: 5 * u, d: Math.min(15, Math.floor(u / 2)) };
+  const r = M.decodificar(pu, um);
+  $("#umb1").textContent = `p = 2u = ${um.p} ms · l = 2u = ${um.l} ms · w = 5u = ${um.w} ms (u = ${u} ms)`;
+  const letras = [...new Set(txt.replace(/ /g, ""))];
+  $("#cartas").innerHTML = letras.map((c) => cartaLetra(c)).join("") || '<span class="mute">Escribe letras o números.</span>';
+  const total = pu.length ? pu[pu.length - 1].t0 + pu[pu.length - 1].dur : 1;
+  const px = Math.min(0.24, 1000 / (total + 800));
+  const g = senalSVG(pu, r.eventos, { px, gapU: u, finExtra: 5 * u + 200 });
+  $("#senal1").innerHTML = g.svg;
+  const lineas = r.eventos.map((e) => e.texto);
+  $("#cons1").innerHTML = consolaHTML(lineas);
+  $("#ledtxt").textContent = `· ${pu.length} pulsos · ${Math.round(total)} ms en total`;
+  if (anim) { cancelAnimationFrame(anim.raf); anim = null; }
+  $("#led1").classList.remove("on");
+  window.__env = { pu, r, g, lineas };
+}
+function reproducir() {
+  if (!window.__env) return;
+  const { pu, r, g, lineas } = window.__env;
+  const vel = +$("#vel").value, ph = $("#senal1 #ph");
+  const fin = pu[pu.length - 1].t0 + pu[pu.length - 1].dur + (+$("#unidad").value) * 6;
+  if (anim) cancelAnimationFrame(anim.raf);
+  const t0 = performance.now();
+  ph.style.display = "";
+  const paso = () => {
+    const t = (performance.now() - t0) * vel;
+    ph.setAttribute("x1", g.X(t)); ph.setAttribute("x2", g.X(t));
+    $("#led1").classList.toggle("on", pu.some((p) => t >= p.t0 && t < p.t0 + p.dur));
+    const vistas = r.eventos.filter((e) => e.t <= t).length;
+    $("#cons1").innerHTML = consolaHTML(lineas.slice(0, vistas)) || "";
+    if (t < fin) anim = { raf: requestAnimationFrame(paso) }; else { ph.style.display = "none"; $("#led1").classList.remove("on"); anim = null; $("#cons1").innerHTML = consolaHTML(lineas); }
+  };
+  anim = { raf: requestAnimationFrame(paso) };
+}
+$("#txt").addEventListener("input", tabEnviar); $("#unidad").addEventListener("input", tabEnviar);
+$("#play").addEventListener("click", reproducir);
+$("#stop").addEventListener("click", tabEnviar);
+
+/* ============ 2. TECLEAR ============ */
+const live = { pulsos: [], down: null, t0: null };
+const nowT = () => performance.now() - live.t0;
+function presionar() { if (live.down !== null) return; if (live.t0 === null) live.t0 = performance.now(); live.down = nowT(); $("#key").classList.add("down"); $("#led2").classList.add("on"); }
+function soltar() {
+  if (live.down === null) return;
+  const dur = nowT() - live.down; live.pulsos.push({ t0: live.down, dur }); live.down = null;
+  $("#key").classList.remove("down"); $("#led2").classList.remove("on"); $("#ultimo").textContent = Math.round(dur) + " ms";
+}
+const key = $("#key");
+key.addEventListener("pointerdown", (e) => { e.preventDefault(); key.setPointerCapture(e.pointerId); presionar(); });
+key.addEventListener("pointerup", soltar); key.addEventListener("pointercancel", soltar);
+addEventListener("keydown", (e) => { if (e.code === "Space" && $("#tab-teclear").classList.contains("on") && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); if (!e.repeat) presionar(); } });
+addEventListener("keyup", (e) => { if (e.code === "Space" && $("#tab-teclear").classList.contains("on")) { e.preventDefault(); soltar(); } });
+const par = () => ({ p: +$("#kp").value || 170, l: +$("#kl").value || 930, w: +$("#kw").value || 3000, d: +$("#kd").value || 0 });
+function preset(p, l, w, d, cual) { $("#kp").value = p; $("#kl").value = l; $("#kw").value = w; $("#kd").value = d; $("#pre1").setAttribute("aria-pressed", cual === 1); $("#pre2").setAttribute("aria-pressed", cual === 2); }
+$("#pre1").onclick = () => preset(300, 700, 1800, 15, 1); $("#pre2").onclick = () => preset(170, 930, 3000, 15, 2);
+$("#borrar").onclick = () => { live.pulsos = []; live.down = null; live.t0 = null; $("#ultimo").textContent = "—"; renderTeclear(); };
+$("#ejemplo").onclick = () => {
+  const t = TANDAS[2]; const lista = t.pulsos.slice(0, 9);
+  live.pulsos = M.pulsosDesdeSilencios(lista, 200); live.t0 = performance.now() - (live.pulsos[live.pulsos.length - 1].t0 + live.pulsos[live.pulsos.length - 1].dur + 6000);
+  live.down = null; preset(170, 930, 3000, 15, 2); renderTeclear();
+};
+function renderTeclear() {
+  const now = live.t0 === null ? 0 : nowT();
+  const r = M.decodificar(live.pulsos, par(), now);
+  const lineas = r.eventos.map((e) => e.texto);
+  $("#cons2").innerHTML = consolaHTML(lineas);
+  $("#cons2").scrollTop = 1e9;
+  let txt = ""; r.eventos.forEach((e) => { if (e.k === "let") txt += e.letra; else if (e.k === "pal") txt += " "; });
+  $("#texto2").innerHTML = esc(txt).replace(/ /g, "&nbsp;") || "&nbsp;";
+  $("#cartas2").innerHTML = r.eventos.filter((e) => e.k === "let").slice(-8).map(cartaDesdeEvento).join("");
+  const enCurso = live.down !== null ? { t0: live.down, dur: now - live.down } : null;
+  const total = (live.pulsos.length ? live.pulsos[live.pulsos.length - 1].t0 + live.pulsos[live.pulsos.length - 1].dur : 0) + (enCurso ? enCurso.dur : 0);
+  const px = Math.min(0.12, 900 / (Math.max(total, now) + 1500));
+  const g = senalSVG(live.pulsos, r.eventos, { px, enCurso, finExtra: Math.max(800, now - total) });
+  $("#senal2").innerHTML = g.svg;
+}
+setInterval(() => { if ($("#tab-teclear").classList.contains("on")) renderTeclear(); }, 120);
+
+/* ============ 3. EVIDENCIA ============ */
+let tandaSel = 3, umbrales = null;
+const badgeSOS = (t) => t.sos_correctos.startsWith("0") ? "bad" : t.sos_correctos.startsWith("2") ? "mid" : "ok";
+function ejeBarras(vals, o) {
+  const n = vals.length, W = 44 + n * 17, H = 190, y0 = H - 26;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  s += `<line x1="38" y1="${y0}" x2="${W - 4}" y2="${y0}" stroke="var(--line)"/>`;
+  o.lineas.forEach((ln) => { const y = o.Y(ln.v); s += `<line x1="38" y1="${y}" x2="${W - 4}" y2="${y}" stroke="${ln.c}" stroke-width="1.6" stroke-dasharray="5 3"/><text x="36" y="${y + 3.5}" font-size="10" text-anchor="end" fill="${ln.c}">${ln.t}</text>`; });
+  vals.forEach((v, i) => {
+    if (v === null) return;
+    const y = o.Y(v), x = 42 + i * 17;
+    s += `<rect x="${x}" y="${y}" width="12" height="${y0 - y}" fill="${o.col(v, i)}" opacity=".85"><title>${o.tit(v, i)}</title></rect>`;
+    s += `<text x="${x + 6}" y="${H - 12}" font-size="8.5" text-anchor="middle" fill="var(--mute)">${i + 1}</text>`;
+  });
+  return s + "</svg>";
+}
+function tabEvid() {
+  const t = TANDAS[tandaSel - 1], um = umbrales, c = t.contadores;
+  const pu = M.pulsosDesdeSilencios(t.pulsos), placa = t.placa.map((e) => e.v);
+  const rP = M.decodificar(pu, t.umbrales), visorLbl = rP.eventos.map((e) => e.texto);
+  const igual = JSON.stringify(visorLbl) === JSON.stringify(placa);
+  $("#selTanda").innerHTML = TANDAS.map((x) => `<button aria-pressed="${x.id === tandaSel}" data-t="${x.id}">Tanda ${x.id} <span class="badge ${badgeSOS(x)}">${x.sos_correctos.split(" (")[0]}</span></button>`).join("");
+  document.querySelectorAll("#selTanda button").forEach((b) => (b.onclick = () => { tandaSel = +b.dataset.t; umbrales = null; tabEvid(); }));
+  const tq = t.toques === null ? `<b>no se sabe</b><br><span class="mute small">${esc(t.toques_nota)}</span>` : `<b>${t.toques}</b>`;
+  const okEnlace = c.A_aceptados === c.B_flancos_crudos;
+  $("#resumenT").innerHTML = `<div class="stat">
+      <div>Umbrales placa B<b>p ${t.umbrales.p} · l ${t.umbrales.l} · w ${t.umbrales.w}</b><span class="mute small">ruido d ${t.umbrales.d} ms · antirrebote A: ${t.d_A} ms</span></div>
+      <div>Toques dados<br>${tq}</div>
+      <div>Pulsos medidos por B<b>${t.pulsos.length}</b><span class="mute small">${c.puntos} puntos · ${c.rayas} rayas</span></div>
+      <div>Enlace A→B<b>${c.A_aceptados} → ${c.B_flancos_crudos}</b><span class="badge ${okEnlace ? "ok" : "mid"}">${okEnlace ? "sin flancos perdidos" : "B contó " + (c.B_flancos_crudos - c.A_aceptados) + " más"}</span></div>
+      <div>SOS correctos<b>${esc(t.sos_correctos)}</b><span class="mute small">rebote crudo en el pin: ${c.A_crudos}</span></div></div>
+    <p style="margin:10px 0 0">${esc(t.nota)}</p>`;
+  const px = 0.085;
+  const g = senalSVG(pu, rP.eventos, { px, gapMax: 6000, mostrarMs: true, finExtra: t.umbrales.w + 400 });
+  $("#senal3").innerHTML = g.svg;
+  $("#consPlaca").innerHTML = consolaHTML(placa);
+  if (!umbrales) umbrales = Object.assign({}, t.umbrales);
+  $("#ep").value = umbrales.p; $("#el").value = umbrales.l; $("#ew").value = umbrales.w; $("#ed").value = umbrales.d;
+  const rV = M.decodificar(pu, umbrales), vl = rV.eventos.map((e) => e.texto);
+  const mismos = JSON.stringify(umbrales) === JSON.stringify(t.umbrales);
+  $("#consVisor").innerHTML = consolaHTML(vl, mismos ? placa : null);
+  $("#badgeVisor").innerHTML = mismos ? `<span class="badge ${igual ? "ok" : "bad"}">${igual ? "idéntica a la de la placa ✓ (" + placa.length + " eventos)" : "DIFIERE de la placa"}</span>` : `<span class="badge mid">otros umbrales · simulación</span>`;
+  const maxP = 1000, clsP = {}; rV.eventos.forEach((e) => { if (e.k === "sim") clsP[e.idx] = e.texto; });
+  $("#barP").innerHTML = ejeBarras(pu.map((p) => p.dur), { lineas: [{ v: umbrales.p, c: "var(--bad)", t: "p " + umbrales.p }],
+    Y: (v) => 164 - Math.min(v, maxP) / maxP * 140, col: (v, i) => (clsP[i] === "." ? "var(--dot)" : clsP[i] === "-" ? "var(--dash)" : "var(--mute)"), tit: (v, i) => `pulso ${i + 1}: ${v} ms` });
+  const sil = t.pulsos.map((p, i) => (i === 0 ? null : p.sil));
+  const lg = (v) => 164 - Math.max(0, Math.min(1, Math.log(Math.max(v, 100) / 100) / Math.log(6000 / 100))) * 140;
+  $("#barS").innerHTML = ejeBarras(sil, { lineas: [{ v: umbrales.l, c: "var(--ok)", t: "l " + umbrales.l }, { v: umbrales.w, c: "var(--pal)", t: "w " + umbrales.w }],
+    Y: lg, col: (v) => (v >= umbrales.w ? "var(--pal)" : v >= umbrales.l ? "var(--ok)" : "var(--mute)"), tit: (v, i) => `pausa antes del pulso ${i + 1}: ${v} ms` });
+}
+["ep", "el", "ew", "ed"].forEach((id) => $("#" + id).addEventListener("input", () => { umbrales = { p: +$("#ep").value, l: +$("#el").value, w: +$("#ew").value, d: +$("#ed").value }; tabEvid(); }));
+$("#eplaca").onclick = () => { umbrales = null; tabEvid(); };
+$("#efinal").onclick = () => { umbrales = { p: 170, l: 930, w: 3000, d: 15 }; tabEvid(); };
+
+/* ============ 4. CONEXIÓN ============ */
+$("#circuito").innerHTML = CIRCUITO_SVG;
+function gnd(on) {
+  const flow = on ? `<path class="flujo" d="M262 120 H520 V232 H262" fill="none" stroke="var(--dash)" stroke-width="3"/>` : "";
+  const cable = on ? `<path d="M262 232 H520" stroke="var(--ink)" stroke-width="6" stroke-linecap="round"/>` : `<path d="M262 232 H330" stroke="var(--ink)" stroke-width="6" stroke-linecap="round"/><path d="M452 232 H520" stroke="var(--ink)" stroke-width="6" stroke-linecap="round"/><text x="391" y="238" text-anchor="middle" font-size="22" fill="var(--bad)">? ✗ ?</text>`;
+  $("#gndsvg").innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 305" width="100%" role="img" aria-label="Lazo de corriente con y sin cable de GND">
+    <rect x="30" y="40" width="232" height="220" rx="9" fill="var(--bg)" stroke="var(--mute)" stroke-width="2"/><rect x="520" y="40" width="232" height="220" rx="9" fill="var(--bg)" stroke="var(--mute)" stroke-width="2"/>
+    <text x="146" y="62" text-anchor="middle" font-size="14" font-weight="700" fill="var(--ink)">Placa A</text><text x="636" y="62" text-anchor="middle" font-size="14" font-weight="700" fill="var(--ink)">Placa B</text>
+    <text x="146" y="86" text-anchor="middle" font-size="12" fill="var(--mute)">GPIO26 pone 3,3 V respecto a SU GND</text><text x="636" y="86" text-anchor="middle" font-size="12" fill="var(--mute)">GPIO25 mide respecto a SU GND</text>
+    <path d="M262 120 H520" stroke="var(--dash)" stroke-width="3.5"/><text x="391" y="112" text-anchor="middle" font-size="12" fill="var(--dash)">señal (330 Ω)</text>
+    ${flow}${cable}
+    <text x="146" y="222" text-anchor="middle" font-size="12" fill="var(--ink)">GND A (0 V de A)</text><text x="636" y="222" text-anchor="middle" font-size="12" fill="var(--ink)">GND B (0 V de B)</text>
+    <text x="391" y="291" text-anchor="middle" font-size="13" font-weight="700" fill="${on ? "var(--ok)" : "var(--bad)"}">${on ? "lazo cerrado: los dos 0 V son el mismo" : "sin retorno: cada placa tiene su propio 0 V"}</text></svg>`;
+  $("#gndtexto").innerHTML = on
+    ? "<b>Con GND común</b> la corriente de la señal sale de GPIO26, entra por GPIO25, pasa por el pull-down de B y <b>vuelve por el cable de GND</b> hasta A. El «0 V» de A y el de B son el mismo punto eléctrico, así que un «1» de A (3,3 V) es un «1» para B."
+    : "<b>Sin GND común</b> no hay camino de retorno directo: la tensión de GPIO26 está referida a un 0 V que B no comparte. Lo que B lee en GPIO25 depende de capacidades parásitas y de otros caminos (USB, red eléctrica): un nivel <b>indeterminado</b> que puede parecer bueno y fallar al mover un cable. <em>(Explicación de diseño; no se midió en este banco.)</em>";
+}
+$("#gndchk").addEventListener("change", (e) => gnd(e.target.checked)); gnd(true);
+
+
+/* ============ 2. EN VIVO (circuito real, por el puente serie) ============ */
+const V = { es: null, ok: false, flancos: [], bev: [], letras: [], texto: "", cA: [], cB: [], est: {}, umb: null,
+            cntA: null, cntB: null, ultSim: null, ultPulso: null, pausa: false, misma: location.protocol.indexOf("http") === 0, rellenados: false };
+const recorta = (a, n) => { if (a.length > n) a.splice(0, a.length - n); };
+function vConectar(forzar) {
+  if (forzar && V.es) { V.es.close(); V.es = null; }
+  if (V.es) return;
+  const base = V.misma ? "" : ($("#vUrl").value || "http://127.0.0.1:8765");
+  try { V.es = new EventSource(base + "/eventos"); } catch (e) { return; }
+  V.es.onopen = () => { V.ok = true; };
+  V.es.onerror = () => { V.ok = false; };
+  V.es.onmessage = (m) => { try { vProcesar(JSON.parse(m.data)); } catch (e) { /* línea ilegible: se ignora */ } };
+}
+function vProcesar(e) {
+  const tms = e.t * 1000;
+  if (e.src === "puente") { if (e.tipo === "estado") V.est = e; return; }
+  const cons = e.src === "A" ? V.cA : V.cB;
+  if (e.raw !== undefined && e.tipo !== "basura") { cons.push(e.raw); recorta(cons, 300); }
+  else if (e.tipo === "basura") { cons.push("⚠ (basura de captura serie descartada)"); recorta(cons, 300); }
+  else if (e.tipo === "comando") { cons.push(">>> " + e.v); recorta(cons, 300); }
+  if (e.src === "A") {
+    if (e.tipo === "flanco") {
+      const prev = V.flancos[V.flancos.length - 1];
+      V.flancos.push({ t: tms, nivel: e.nivel, tms: e.t_ms });
+      if (e.nivel === 0 && prev && prev.nivel === 1) V.ultPulso = { dur: e.t_ms - prev.tms, t: tms };
+      recorta(V.flancos, 2000);
+    } else if (e.tipo === "resumen" || e.tipo === "contadores") V.cntA = { crudos: e.crudos, aceptados: e.aceptados };
+  } else {
+    if (e.tipo === "simbolo") { V.bev.push({ t: tms, k: "sim", v: e.v }); V.ultSim = { v: e.v, t: tms }; }
+    else if (e.tipo === "letra") {
+      V.bev.push({ t: tms, k: "let", letra: e.letra, bin: e.bin, morse: e.morse });
+      V.texto += e.letra; V.letras.push(e); recorta(V.letras, 40); V.texto = V.texto.slice(-40);
+    } else if (e.tipo === "palabra") { V.bev.push({ t: tms, k: "pal" }); V.texto += " "; V.texto = V.texto.slice(-40); }
+    else if (e.tipo === "umbrales") { V.umb = e; }
+    else if (e.tipo === "contadores") V.cntB = e;
+    recorta(V.bev, 600);
+  }
+}
+function vEstadoUI() {
+  const bd = (id, txt, cl) => { const el = $(id); el.textContent = txt; el.className = "badge " + cl; };
+  const st = V.est || {};
+  bd("#vPuente", V.ok ? "puente: conectado" : "puente: sin conexión", V.ok ? "ok" : "bad");
+  const ok = (x) => x === "conectado" || x === "demo";
+  bd("#vA", "A (llave): " + (st.A || "—"), ok(st.A) ? "ok" : "mid");
+  bd("#vB", "B (receptor): " + (st.B || "—"), ok(st.B) ? "ok" : "mid");
+  const demo = String(st.modo || "").indexOf("demo") === 0;
+  const mt = /tanda (\d)/.exec(String(st.modo || ""));
+  if (demo && !V.umb && mt && typeof TANDAS !== "undefined") {  // en demo no hay placa a la que preguntar: umbrales de la evidencia
+    const u = TANDAS[+mt[1] - 1].umbrales; V.umb = { punto_raya_ms: u.p, letra_ms: u.l, palabra_ms: u.w, debounce_ms: u.d, verbose: 1, deEvidencia: true };
+  }
+  $("#vModo").style.display = demo ? "" : "none"; $("#vModo").className = "badge bad"; $("#vModo").textContent = demo ? "DEMO · " + st.modo : "";
+  $("#vSinPuente").style.display = V.ok ? "none" : "";
+  $("#vUrlFila").style.display = V.misma ? "none" : "";
+  $("#vCmdNota").textContent = !V.ok ? "" : demo ? "Modo demo: no hay placas, los comandos están desactivados." : !V.misma ? "Archivo local: solo lectura. Abre la dirección del puente para mandar comandos." : "";
+  ["vAplicar", "vEstado", "vCeros"].forEach((id) => { $("#" + id).disabled = !(V.ok && V.misma && !demo); });
+}
+function vSenal() {
+  const vent = +$("#vVentana").value, ahora = Date.now(), ini = ahora - vent;
+  const pu = [], falls = [];
+  let enCurso = null;
+  for (let i = 0; i < V.flancos.length; i++) {
+    const f = V.flancos[i];
+    if (f.nivel === 1) {
+      const sig = V.flancos[i + 1];
+      if (sig && sig.nivel === 0) { if (sig.t >= ini) { const t0 = Math.max(0, f.t - ini); pu.push({ t0, dur: sig.t - ini - t0 }); falls.push(sig.t); } }
+      else if (!sig) enCurso = { t0: Math.max(0, f.t - ini), dur: ahora - Math.max(f.t, ini) };
+    }
+  }
+  // Asocia cada símbolo que imprimió B con el pulso de A más cercano (±500 ms), en orden.
+  const usados = new Set(), ev = []; let cur = [];
+  V.bev.forEach((b) => {
+    if (b.t < ini - 4000) return;
+    const tr = b.t - ini;
+    if (b.k === "sim") {
+      let mejor = -1, d = 500;
+      falls.forEach((ft, i) => { const dd = Math.abs(ft - b.t); if (!usados.has(i) && dd < d) { d = dd; mejor = i; } });
+      if (mejor >= 0) { usados.add(mejor); cur.push(mejor); ev.push({ k: "sim", texto: b.v, idx: mejor, t: tr }); }
+    } else if (b.k === "let") { if (cur.length) ev.push({ k: "let", letra: b.letra, bin: b.bin, morse: b.morse || "", indices: cur, t: tr }); cur = []; }
+    else if (b.k === "pal") { ev.push({ k: "pal", t: tr }); cur = []; }
+  });
+  const px = Math.min(0.24, 1040 / vent);
+  $("#vSenal").innerHTML = senalSVG(pu, ev, { px, enCurso, tFin: vent, mostrarMs: vent <= 20000, altoBits: true }).svg;
+}
+function vRefrescar() {
+  vEstadoUI();
+  const ult = V.flancos[V.flancos.length - 1], ahora = Date.now();
+  $("#vLedA").classList.toggle("on", !!(ult && ult.nivel === 1));
+  $("#vNivelA").textContent = ult ? (ult.nivel ? "1 (presionada)" : "0 (abierta)") : "—";
+  $("#vSim").textContent = V.ultSim ? (V.ultSim.v === "." ? "· punto" : "− raya") : "—";
+  $("#vSimT").textContent = V.ultSim ? "hace " + ((ahora - V.ultSim.t) / 1000).toFixed(1) + " s" : "";
+  $("#vPulso").textContent = V.ultPulso ? V.ultPulso.dur + " ms" + (V.umb ? (V.ultPulso.dur < V.umb.punto_raya_ms ? " → punto" : " → raya") : "") : "—";
+  $("#vcA").textContent = V.cntA ? V.cntA.crudos + " crudos → " + V.cntA.aceptados + " aceptados" : (V.flancos.length ? V.flancos.length + " vistos" : "—");
+  if (V.cntB) { $("#vcB1").textContent = V.cntB.flancos_crudos + " vistos por la ISR"; $("#vcB2").textContent = `puntos ${V.cntB.puntos} · rayas ${V.cntB.rayas} · letras ${V.cntB.letras} · desconocidas ${V.cntB.desconocidas} · filtrados ${V.cntB.filtrados} · desbordes ${V.cntB.desbordes_buffer}`; }
+  if (V.umb) {
+    $("#vUmbTxt").textContent = V.umb.deEvidencia ? "(los usados en esa tanda, de la evidencia)" : `(leídos de la placa; verbose ${V.umb.verbose ? "activo" : "apagado"})`;
+    [["vp", "punto_raya_ms"], ["vl", "letra_ms"], ["vw", "palabra_ms"], ["vd", "debounce_ms"]].forEach(([id, k]) => { const el = $("#" + id); if (document.activeElement !== el) el.value = V.umb[k]; });
+  }
+  $("#vTexto").innerHTML = esc(V.texto).replace(/ /g, "&nbsp;") || "&nbsp;";
+  $("#vCartas").innerHTML = V.letras.slice(-8).map(cartaDesdeEvento).join("");
+  const fija = (id, arr) => { const el = $(id), pie = el.scrollTop + el.clientHeight >= el.scrollHeight - 30; el.textContent = arr.slice(-120).join("\n"); if (pie) el.scrollTop = el.scrollHeight; };
+  fija("#vConsA", V.cA); fija("#vConsB", V.cB);
+  if (!V.pausa) vSenal();
+}
+async function vComando(placa, cmd) {
+  const r = await fetch("/comando", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ placa, cmd }) });
+  if (!r.ok) throw new Error(placa + " " + cmd + ": " + r.status);
+}
+$("#vEstado").onclick = async () => { try { await vComando("A", "r"); await vComando("B", "r"); } catch (e) { alert("No se pudo: " + e.message); } };
+$("#vCeros").onclick = async () => {
+  if (!confirm("Poner a cero los contadores de las dos placas. ¿Continuar?")) return;
+  try { await vComando("A", "c"); await vComando("B", "c"); await vComando("A", "r"); await vComando("B", "r"); V.flancos = []; V.bev = []; V.letras = []; V.texto = ""; } catch (e) { alert("No se pudo: " + e.message); }
+};
+$("#vAplicar").onclick = async () => {
+  const n = (id) => +$("#" + id).value, act = V.umb || {};
+  const p = n("vp"), l = n("vl"), w = n("vw"), d = n("vd"), dA = n("vdA");
+  if (!(l < w)) { alert("Debe cumplirse letra (l) < palabra (w)."); return; }
+  if (!confirm(`Cambiar en las placas (solo en RAM, se pierde al reiniciar):\n B: p=${p}, l=${l}, w=${w}, d=${d} ms` + (dA ? `\n A: d=${dA} ms` : "") + "\n¿Continuar?")) return;
+  try {
+    const orden = l > (act.palabra_ms || 1e9) ? [["w", w], ["l", l]] : [["l", l], ["w", w]];
+    await vComando("B", "p" + p); for (const [k, v] of orden) await vComando("B", k + v); await vComando("B", "d" + d);
+    if (dA >= 0 && $("#vdA").value !== "") await vComando("A", "d" + dA);
+    await vComando("B", "r"); await vComando("A", "r");
+  } catch (e) { alert("No se pudo aplicar: " + e.message); }
+};
+$("#vPausa").onclick = (e) => { V.pausa = !V.pausa; e.target.setAttribute("aria-pressed", V.pausa); e.target.textContent = V.pausa ? "Reanudar" : "Pausar"; };
+$("#vBorrar").onclick = () => { V.flancos = []; V.bev = []; V.letras = []; V.texto = ""; V.cA = []; V.cB = []; };
+$("#vReconectar").onclick = () => vConectar(true);
+$("#vVentana").addEventListener("change", vSenal);
+setInterval(() => { if ($("#tab-vivo").classList.contains("on")) vRefrescar(); }, 100);
+
+/* ---------- pestañas ---------- */
+function ir(nombre) {
+  document.querySelectorAll("#nav button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === nombre));
+  document.querySelectorAll("main > section").forEach((s) => s.classList.toggle("on", s.id === "tab-" + nombre));
+  if (nombre === "enviar") tabEnviar(); if (nombre === "evid") tabEvid(); if (nombre === "teclear") renderTeclear();
+  if (nombre === "vivo") { vConectar(); vRefrescar(); }
+  history.replaceState(null, "", "#" + nombre);
+}
+document.querySelectorAll("#nav button").forEach((b) => (b.onclick = () => ir(b.dataset.tab)));
+const h = new URLSearchParams(location.hash.slice(1).replace(/^([a-z]+)(&|$)/, "tab=$1&"));
+if (h.get("t")) tandaSel = +h.get("t");
+ir(h.get("tab") || (V.misma ? "vivo" : "enviar"));
+if (h.get("ejemplo")) $("#ejemplo").click();
+if (h.get("gnd") === "0") { $("#gndchk").checked = false; gnd(false); }
+})();
+</script>
+</body>
+</html>

@@ -34,6 +34,8 @@ firmware/test/host/esps_proto_tests
 *.db-wal
 *.db-shm
 *.log
+# ...salvo la evidencia real de las practicas de banco (logs de las placas): se versiona a proposito
+!bench/practicas/*/evidencia/*.log
 captures/
 runs/
 
