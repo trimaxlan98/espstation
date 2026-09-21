@@ -202,6 +202,29 @@ telemetry source in PiStation's mission console, through real CCSDS packets.
 
 ---
 
+## Out-of-band slice — the digital link (not part of any sprint)
+
+Two-board digital I/O link (`bench/practicas/enlace-digital/`, contract in
+`SPEC-LINK.md`) plus its integration: `esps_dio` firmware component, a virtual
+cable in the simulator, and `set_gpio` made real in the simulator. It belongs to
+no sprint cleanly, so it is recorded here rather than letting the roadmap
+imply it does not exist. What it **pre-validates**:
+
+- **S7's central constraint** — the link's signals reach the desktop's Live
+  section as ordinary NDB channels with **zero desktop changes** (D-17).
+- **Machinery S6 will need** — a wire between two nodes with delay, loss and
+  glitches in the simulator, and a two-wire link with addressing as a stretch
+  goal (D-16).
+- It also forced **D-20** (an NDB larger than one frame is sent as several
+  `HELLO`s) — a problem every later sprint that adds channels would have hit.
+
+What it does **not** do: it is not S1 (the firmware has still never run on the
+bench), and `set_gpio` is unreachable from the station on real hardware until
+S3's experiment runtime exists. Status and the unverified list are in
+`SPRINT_STATUS.md`.
+
+---
+
 ## Standing constraints
 
 These hold in every sprint and a change to any of them is a decision that must

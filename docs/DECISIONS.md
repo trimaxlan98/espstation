@@ -135,3 +135,138 @@ would mean an approval protocol over a link that D-1 says may not exist.
 **Consequence:** exposing the gateway beyond localhost is opt-in and
 token-gated, and this decision must be revisited before any deployment where
 the link is not trusted.
+
+---
+
+## Out-of-band slice: the digital link (D-16 … D-21)
+
+Decisions from the two-board digital-link practice and its integration into
+EspStation (see `bench/practicas/enlace-digital/` and the ROADMAP note on this
+slice). The link contract itself lives in
+`bench/practicas/enlace-digital/SPEC-LINK.md`.
+
+## D-16 — The inter-node link is synchronous two-wire (explicit clock), not a bit-banged UART
+Data on one line, clock on another; the receiver samples on the rising clock
+edge.
+**Why:** an asynchronous UART needs both boards to agree on a bit period to
+within a few percent and to sample mid-bit, which a task-scheduled GPIO
+bit-banger on a dual-core RTOS does poorly; with an explicit clock the data
+only has to be stable around the edge, so scheduling jitter lengthens the
+period instead of corrupting bits. It is also the easier link to explain in a
+classroom. The cost is one extra wire and one extra pin pair.
+**Consequence:** the speed limit is set by ISR latency and edge integrity, not
+by clock agreement — and is reported as a measured finding, not hidden. It
+prefigures the bus-with-addressing extension for S6.
+
+## D-17 — Link signals are NDB channels and `EVENT`s; no new protocol messages
+`dio.tx`, `dio.rx`, `link.rtt_us`, `link.frames_ok`, `link.frames_err`,
+`link.ber` are declared in the node's `HELLO` (ids 16–21, the experiment range
+of PROTOCOL.md §4.1); edges, CRC errors and link loss are `EVENT`s. The `0x80`
+range (D-14) is not used.
+**Why:** everything the station needs already fits the existing contract, and
+the slice doubles as an early test of S7's central constraint — a new driver
+must not require a station change. The desktop's Live section charts these
+channels with **zero TypeScript changes**.
+**Consequence:** the desktop's presentation limits (one Y axis, four charted
+channels) apply. A logic-analyzer panel would be separate work, justified by
+those limits and not by any inability of the NDB to carry the signal.
+
+## D-18 — Pin assignment; GPIO12 is never used; the link owns its pins
+`TX_DATA` 26, `RX_DATA` 25, `TX_CLK` 27, `RX_CLK` 14, LED 4; same on every
+board so one firmware serves all and only a role constant changes. GPIO12 is the
+MTDI strapping pin: high at reset selects 1.8 V VDD_SDIO and a 3.3 V flash may
+not boot. GPIO6–11 are the flash bus, 34–39 have no pull-down, and 0/2/5/15 are
+strapping pins to avoid. `set_gpio` may drive only the safe output list, and
+refuses the link's own pins (`reason: owned_by_link`): 14 and 25, the link's
+*inputs*, always — a node cannot know that the other end of that wire is not an
+output — and 26 and 27, its outputs, unless the node is in manual mode.
+**Why:** a stray `set_gpio` on a pin the link is driving would create bus
+contention between two boards — the one electrical fault this design must not
+allow.
+**Consequence:** GPIO14 is reported in the classic ESP32 pin references as
+emitting a short PWM burst at boot — from general knowledge, **not yet measured
+on this bench**. Since `RX_CLK` is GPIO14 and the other board's `TX_CLK` drives
+the same wire, series resistors on all four lines are part of the wiring rules,
+and the effect is on the hardware-verification checklist.
+
+## D-19 — One link contract, three implementations, guarded by golden vectors
+The frame (`0xAA·LEN·PAYLOAD·CRC-8/SMBUS`), the test-payload generator and the
+BER accounting exist in the Arduino sketches, in `esps_dio` (C11, pure) and in
+the simulator (Python). This is a duplication D-8 would normally forbid; it is
+acceptable here because what goes over ENLP is still the one real codec, and
+the link layer is small, frozen and pinned by shared vectors: the golden CRC and
+frame vectors plus a bit-flip sweep that must give exactly 13 spurious
+`FRAME_OK` on 8000 `LEN` flips and 0 on 139 976 payload/CRC flips, asserted in
+the C suite, the Python suite and — through `make bench-test`, which compiles
+the real `n3_bytes.ino` against a host mock of the Arduino core and cross-checks
+its counters against `dio_link.py` — the sketch itself. That last test proves
+logic, never timing, and was added after the review found the sketch was the
+only one of the three implementations with no test in the repo.
+**Why:** the sketches must be self-contained (an academic deliverable), and the
+simulator cannot link C.
+**Consequence:** any change to the link contract must land in all three plus
+their vectors in one commit. **Measured weakness:** CRC-8 does not protect `LEN`
+from itself — a flipped `LEN` bit gives a spurious `FRAME_OK` about 0.16 % of
+the time — so `frames_ok` with `bit_errors > 0` is a real, visible outcome.
+
+## D-20 — An oversized NDB is announced as several partial `HELLO`s
+Three `sys.*` channels plus the six link channels serialise to 1211 B on the
+real firmware (≈1450 B with the simulator's five `sys.*`), over the 1024 B
+`MAX_PAYLOAD` — and over the firmware's real ceiling of 885 B, which is what its
+900 B UART frame buffer leaves after COBS and header. Even the simulator's
+default node already uses 959 B. So the node sends several complete `HELLO`s,
+each with a slice of `ndb`, and the station merges them.
+**Why:** PROTOCOL.md §4.1 already lets a node extend its NDB by re-sending
+`HELLO`; slicing reuses that rule and needs no new message or field. The
+alternatives — shorter descriptors, or a new message — would either lose the
+human-readable `name`/`unit` that D-7 depends on or be a real protocol change.
+**This is a wire-format non-change but a station behaviour change**, and the
+first version of this entry understated that. The gateway's store used to
+overwrite a node's stored NDB with whatever the last `HELLO` carried; it now
+merges. PROTOCOL.md §4.1 therefore states three rules as requirements on the
+station (merge, never delete, one `HELLO_ACK` per `HELLO`) and one on the node
+(re-announce until every slice of the round is acknowledged). The last two exist
+because of a bug the review found: the node used to stop at the first ACK, so a
+lost second slice was never resent and the station silently dropped that
+slice's samples.
+**Consequence:** `tools/check_protocol.py` cannot police any of this — it
+compares frames and fields, not station behaviour — so the rules are pinned by
+gateway tests (`test_store_ndb.py`, the HELLO-slice and unknown-channel tests).
+The minor version in `espstation.protocol.yaml` is **not** bumped, because
+nothing on the wire changed; revisit if §6 is read to require it. The station
+never deletes a channel it has learned, so a node that reboots with a smaller
+NDB leaves stale channels in the registry and in SQLite until that is designed
+properly — there is no cleanup path today. One announcement of N slices is one
+*session*: slices from the same node on the same link less than 5 s apart share
+a `session`, while each slice still gets its own `HELLO_ACK` and its own
+time-sync anchor.
+
+## D-21 — Link firmware: role by build variant, receive path in IRAM, `set_gpio` declared but unreachable
+`ESPS_DIO_ROLE` is a compile-time constant (0 = disabled, the default and
+byte-for-byte the S0 behaviour of RAM; 1 = initiator/transmitter, 2 =
+responder/receiver), selected by the PlatformIO envs `esp32dev_dio_a` and
+`esp32dev_dio_b`. The receive path (`frame.o`, `crc8.o`) is placed in IRAM by a
+linker fragment and the GPIO ISR service is installed with
+`ESP_INTR_FLAG_IRAM`. The phase task runs at priority 11 pinned to core 1 — which puts it away from
+the esp_timer task and ISR (both pinned to core 0 in this build) but does **not**
+isolate it from the UART link tasks, which have no affinity and may land on
+core 1, where priority 11 starves them for up to ~28 ms per frame (~370 ms per
+burst); the tighter side is RX, whose 2048 B driver ring is ~4.2 kB short of
+370 ms of continuous traffic at 115200 baud — harmless while the station only
+sends occasional CMDs, not a guarantee. The task stack is 6144 B, sized from a
+static call-graph measurement (~3760 B worst case) plus interrupt and ISR frames. Role A
+masks its own `RX_DATA` interrupt during an N3 burst. `esps_dio_set_gpio()`
+exists and its validation is host-tested, but nothing invokes it.
+**Why:** there is no experiment runtime before S3, so the role cannot come from
+an `EXP_SET`; a build variant is the honest stand-in (`TODO(S3)`). Without IRAM
+placement, the ISR is masked whenever this node writes its own flash (NVS at
+boot, `node.set_label`), which would inject errors into the very link being
+measured, invisibly. Role B mirrors every `RX_DATA` edge back onto its
+`TX_DATA`, which lands on A's `RX_DATA` — about one interrupt per data bit on
+the task that is bit-banging with a 50 µs half period — so A must mask it. A
+`set_gpio` CMD op would be a protocol change, so it is deliberately not added.
+**Consequence:** none of this has run on hardware. Claims that depend on it (the
+IRAM benefit, 10 kbit/s holding, ISR keep-up, the 6144 B stack budget) are
+hypotheses with a named bench test each in the hardware-verification prompt.
+Two boards must be flashed with different roles: two role-B boards look inert
+and two role-A boards both report `link.lost`.
