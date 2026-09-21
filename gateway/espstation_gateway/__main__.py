@@ -27,6 +27,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--token", default=DEFAULT_TOKEN, help="bearer token (default: dev token, change for LAN exposure)")
     parser.add_argument("--db", default=str(DEFAULT_DB_PATH), help="path to the SQLite database file")
     parser.add_argument("--sim", nargs="?", const=3, type=int, metavar="N", help="preload N simulated nodes (default 3 if flag given with no value)")
+    parser.add_argument(
+        "--sim-dio", action="store_true",
+        help="also attach 2 simulated nodes joined by a virtual two-wire cable (dio.*/link.* channels)",
+    )
     parser.add_argument("--serial", metavar="PATH", help="attach a real node over this serial port at startup (e.g. /dev/ttyUSB0)")
     return parser
 
@@ -43,6 +47,7 @@ def main(argv: list[str] | None = None) -> None:
         port=args.port,
         db_path=Path(args.db),
         sim_preload=args.sim or 0,
+        sim_dio=args.sim_dio,
     )
     app = create_app(settings)
 

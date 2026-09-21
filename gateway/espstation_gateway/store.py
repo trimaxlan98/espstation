@@ -167,6 +167,8 @@ class Store:
     ) -> None:
         now = time.time()
         with self._conn:
+            if ndb is not None:
+                ndb = self._merge_ndb(node_id, ndb)
             self._conn.execute(
                 """
                 INSERT INTO nodes(node_id, mac, label, chip_json, fw_json, caps_json, ndb_json, first_seen, last_seen)
@@ -186,6 +188,18 @@ class Store:
                     now, now,
                 ),
             )
+
+    def _merge_ndb(self, node_id: int, incoming: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """A node whose NDB does not fit one HELLO announces it in several
+        partial HELLOs (and may extend it later): merge them, like the
+        in-memory registry does, instead of keeping only the last slice. A
+        channel is replaced when the same id or the same key comes back."""
+        row = self._conn.execute("SELECT ndb_json FROM nodes WHERE node_id=?", (node_id,)).fetchone()
+        stored: list[dict[str, Any]] = json.loads(row["ndb_json"]) if row and row["ndb_json"] else []
+        new_ids = {c["id"] for c in incoming}
+        new_keys = {c["key"] for c in incoming}
+        kept = [c for c in stored if c["id"] not in new_ids and c["key"] not in new_keys]
+        return sorted(kept + incoming, key=lambda c: c["id"])
 
     def touch_node(self, node_id: int) -> None:
         with self._conn:

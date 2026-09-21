@@ -14,13 +14,14 @@ import asyncio
 import math
 import random
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, AsyncIterator, Callable
 
+from . import dio_link
 from ..base import Transport
 from ...protocol import messages as msg
 from ...protocol import spec as protocol_spec
-from ...protocol.frames import Frame, encode as encode_frame
+from ...protocol.frames import MAX_PAYLOAD as MAX_FRAME_PAYLOAD, Frame, encode as encode_frame
 
 _MASTER_TICK_HZ = 20.0
 _MAX_SAMPLES_PER_FRAME = 64
@@ -45,11 +46,78 @@ class _ChannelRuntime:
     _last_value: Any = None
 
 
+# Event rate limits, "N per W ms" (SPEC-LINK "Semántica de eventos"; the same
+# numbers esps_dio_init() gives its limiters). link.up and link.lost by
+# handshake are edge-triggered and have no limiter. The number of events a
+# limiter swallowed is reported as `data.suppressed` on the next one that
+# gets through.
+_DIO_EVENT_LIMITS: dict[str, tuple[int, int]] = {  # key -> (window_ms, max_in_window)
+    "dio.edge": (1000, 5),
+    "link.frame_ok": (5000, 1),
+    "link.crc_err": (5000, 2),
+    "link.lost.frames": (5000, 1),
+}
+
+
+def _monotonic_us() -> int:
+    return time.monotonic_ns() // 1000
+
+
+@dataclass
+class DioConfig:
+    """Behaviour of the simulated digital link on one node (SPEC-LINK)."""
+
+    # Time source for the wire model. Injectable so tests can drive virtual
+    # time; the default is one process-wide clock, so every node agrees on
+    # when a wire edge was sent.
+    clock_us: Callable[[], int] = _monotonic_us
+    # Manual mode (SPEC-LINK "set_gpio"): the node schedules no link phases --
+    # no blink, no handshakes, no test-frame bursts -- and dio.tx is driven
+    # only by set_gpio, which then also accepts the link-owned pins
+    # (26, 27); the input pins 14 and 25 are refused in every mode. Frames
+    # arriving on dio.rx are still decoded.
+    manual: bool = False
+    # Demo stimulus: toggle dio.tx at this rate (Hz of the full square wave)
+    # so the charts have something to show. 0 = off. Ignored in manual mode.
+    # Real hardware toggles nothing on its own.
+    blink_hz: float = 0.0
+    handshake_hz: float = 1.0  # N2 emulation: one round trip per period
+    frames_per_burst: int = 20  # N3 emulation: test frames per burst
+    burst_period_s: float = 1.0  # 0 disables frame bursts
+    lost_after_timeouts: int = 3  # consecutive timeouts before `link.lost`
+    event_limits: dict[str, tuple[int, int]] = field(default_factory=lambda: dict(_DIO_EVENT_LIMITS))
+
+
+@dataclass
+class _DioRuntime:
+    config: DioConfig
+    out_wire: Any = None  # VirtualWire this node drives (dio.tx)
+    in_wire: Any = None  # VirtualWire this node listens to (dio.rx)
+    monitor: dio_link.LinkMonitor = field(default_factory=dio_link.LinkMonitor)
+    rx_level: int = 0
+    edges_rx: int = 0
+    tx_seq: int = 0
+    frames_sent: int = 0
+    blink_accum: float = 0.0
+    hs_accum: float = 0.0
+    burst_accum: float = 0.0
+    link_state: str = "init"  # init | up | lost
+    consec_timeouts: int = 0
+    handshakes_ok: int = 0
+    handshakes_timeout: int = 0
+    last_rtt_us: int | None = None
+    limiters: dict[str, dio_link.RateLimit] = field(default_factory=dict)
+    edges_reported: int = 0
+
+
 class SimNode:
     """One simulated node. Owns its NDB, its synthetic sensors, its
     experiment runtime, and an outbound frame queue that SimTransport drains."""
 
-    def __init__(self, node_id: int, label: str | None = None, *, seed: int | None = None) -> None:
+    def __init__(
+        self, node_id: int, label: str | None = None, *, seed: int | None = None,
+        dio: "DioConfig | bool" = False,
+    ) -> None:
         self.node_id = node_id
         self.label = label or f"sim-{node_id:04x}"
         self.mac = _mac_from_node_id(node_id)
@@ -102,8 +170,19 @@ class SimNode:
         # NET_REPORT reflect real configured peers instead of an empty list.
         self.peer_provider: Callable[[], list[dict[str, Any]]] | None = None
 
+        # Output state of the GPIOs set_gpio may drive (gpio -> 0/1). GPIO26
+        # (TX_DATA) doubles as the level on the digital link's dio.tx.
+        self.gpio_out: dict[int, int] = {}
+        self._dio: _DioRuntime | None = None
+        self._announced = False  # a HELLO has been enqueued: the NDB is on the station's books
+        # Frames dropped because a bounded outbox was full (see _send_nowait).
+        self.outbox_dropped = 0
+
         self._tasks: list[asyncio.Task] = []
         self._running = False
+
+        if dio:
+            self.enable_dio(dio if isinstance(dio, DioConfig) else None)
 
     # -- NDB ------------------------------------------------------------
 
@@ -125,6 +204,52 @@ class SimNode:
             )
         )
         return channels
+
+    def enable_dio(self, config: "DioConfig | None" = None, **overrides: Any) -> None:
+        """Opt in to the SPEC-LINK digital link channels (ids 16-21).
+
+        The default NDB is untouched unless this is called. Ids 16-127 are
+        experiment/sensor space (PROTOCOL.md 4.1) and SPEC-LINK claims 16-21
+        for dio.*/link.*, which collides with `adc.a0` (id 16 in the PROTOCOL
+        worked example). A dio node therefore has NO `adc.a0`: the firmware
+        that publishes the real dio channels must resolve the collision the
+        same way.
+
+        Must be called before start() (spawn(dio=True) and --sim-dio do). On a
+        node that already announced itself it raises RuntimeError: dropping
+        `adc.a0` from the NDB cannot be un-announced, because the station
+        merges HELLOs and never deletes, so its registry would keep
+        `adc.a0` pointing at id 16 -- now `dio.tx` -- and an EXP_SET on
+        `adc.a0` would pass validation and apply its scale/enc to the wrong
+        channel, while the SQLite copy (merged by id) says otherwise.
+        Changing the config of a node that already has dio is still allowed.
+        """
+        if self._dio is not None:
+            if config is not None or overrides:
+                self._dio.config = (
+                    replace(config, event_limits=dict(config.event_limits)) if config else DioConfig(**overrides)
+                )
+            return
+        if self._running or self._announced:
+            raise RuntimeError(
+                f"node {self.node_id}: enable dio before start() -- the station cannot "
+                "forget the adc.a0 channel this node already announced"
+            )
+        # Own copy: spawn(dio=cfg) hands the same DioConfig to every node.
+        cfg = replace(config, event_limits=dict(config.event_limits)) if config else DioConfig(**overrides)
+        self._dio = _DioRuntime(config=cfg)
+        self.ndb = [ch for ch in self.ndb if ch.key != "adc.a0"]
+        self._channels.pop("adc.a0", None)
+        rates = {"dio.tx": 20.0, "dio.rx": 20.0, "link.rtt_us": cfg.handshake_hz}
+        for ch_id, key, name, unit, type_, group in dio_link.NDB_CHANNELS:
+            ch = msg.NdbChannel(id=ch_id, key=key, name=name, unit=unit, type=type_,
+                                rate_hz=rates.get(key, 1.0), group=group)
+            self.ndb.append(ch)
+            self._channels[key] = _ChannelRuntime(ndb=ch, rate_hz=ch.rate_hz)
+
+    @property
+    def dio_enabled(self) -> bool:
+        return self._dio is not None
 
     # -- lifecycle --------------------------------------------------------
 
@@ -158,12 +283,28 @@ class SimNode:
         self._seq = (self._seq + 1) & 0xFFFF
         return seq
 
-    async def _send(self, type_code: int, payload: bytes) -> None:
-        frame_bytes = encode_frame(type_code, self.node_id, self._next_seq(), payload)
-        await self.outbox.put(frame_bytes)
+    def _send_nowait(self, type_code: int, payload: bytes) -> None:
+        """Enqueue a frame for the station, never blocking and never raising.
 
-    async def _enqueue_hello(self) -> None:
-        hello = msg.Hello(
+        The outbox is unbounded today, but that is a property of how it is
+        built, not of this method. If it is ever bounded and full the frame is
+        dropped and counted in `outbox_dropped`, the way the firmware treats
+        its TX queue: a full queue must not stall the node (D-1). The frame's
+        sequence number is spent anyway, so the station sees the gap.
+        """
+        if type_code == msg.TYPE_HELLO:
+            self._announced = True
+        frame = encode_frame(type_code, self.node_id, self._next_seq(), payload)
+        try:
+            self.outbox.put_nowait(frame)
+        except asyncio.QueueFull:
+            self.outbox_dropped += 1
+
+    async def _send(self, type_code: int, payload: bytes) -> None:
+        self._send_nowait(type_code, payload)
+
+    def _hello(self, ndb: list[msg.NdbChannel] | None = None) -> msg.Hello:
+        return msg.Hello(
             mac=self.mac,
             node_id=self.node_id,
             label=self.label,
@@ -171,9 +312,35 @@ class SimNode:
             fw=msg.FwInfo(version="0.1.0-sim", build="sim", idf="5.3.1", target="esp32"),
             caps=["telemetry", "experiment", "espnow", "store_forward"],
             boot=msg.BootInfo(count=self.boot_count, reason="power_on", uptime_ms=self.uptime_ms()),
-            ndb=self.ndb,
+            ndb=self.ndb if ndb is None else ndb,
         )
-        await self._send(msg.TYPE_HELLO, hello.to_payload())
+
+    def _hello_payloads(self) -> list[bytes]:
+        """HELLO frame payloads announcing the whole NDB.
+
+        A serial/TCP frame carries at most MAX_PAYLOAD (1024) bytes, and a
+        HELLO is ~380 B of descriptor plus ~110 B per channel: the 5 system
+        channels plus the 6 dio ones do not fit in one. PROTOCOL.md 4.1 lets a
+        node extend its NDB by re-sending HELLO and the station merges them,
+        so an oversized table goes out as several complete HELLOs, each with a
+        slice of the channels. A node that fits (every default node) still
+        sends exactly one.
+        """
+        payloads: list[bytes] = []
+        chunk: list[msg.NdbChannel] = []
+        for ch in self.ndb:
+            candidate = self._hello(chunk + [ch]).to_payload()
+            if len(candidate) > MAX_FRAME_PAYLOAD and chunk:
+                payloads.append(self._hello(chunk).to_payload())
+                chunk = [ch]
+            else:
+                chunk.append(ch)
+        payloads.append(self._hello(chunk).to_payload())
+        return payloads
+
+    async def _enqueue_hello(self) -> None:
+        for payload in self._hello_payloads():
+            await self._send(msg.TYPE_HELLO, payload)
 
     async def _hello_retry_loop(self) -> None:
         retry_s = protocol_spec.timing().get("hello_retry_s", 30)
@@ -269,7 +436,11 @@ class SimNode:
             if op == "node.ping":
                 await self._ack(cmd.id, True, {"pong": True, "uptime_ms": self.uptime_ms()})
             elif op == "node.info":
-                await self._ack(cmd.id, True, {"mac": self.mac, "node_id": self.node_id, "label": self.label})
+                await self._ack(cmd.id, True, {
+                    "mac": self.mac, "node_id": self.node_id, "label": self.label,
+                    "gpio_out": {str(g): v for g, v in sorted(self.gpio_out.items())},
+                    "outbox_dropped": self.outbox_dropped,
+                })
             elif op == "node.reboot":
                 await self._do_reboot()
                 await self._ack(cmd.id, True, {"state": "boot"})
@@ -333,6 +504,7 @@ class SimNode:
             self._spec is not None and self._spec.persist and self._spec.start.mode == "on_boot"
         )
         self.run_state = "idle"
+        self._dio_on_boot()
         await self._emit_event("sys.reboot", data={"boot_count": self.boot_count})
         await self._enqueue_hello()
         self.state = 1
@@ -401,6 +573,201 @@ class SimNode:
             rt.enc_name = ch_spec.enc
             rt.scale = ch_spec.scale
 
+    # -- GPIO outputs + digital link (SPEC-LINK) -------------------------------
+
+    async def set_gpio(self, gpio: int | None, level: int | None) -> bool:
+        """Drive an output pin, validated like the firmware's
+        esps_dio_gpio_validate(): allow-list first, then link ownership, then
+        level range.
+
+        A rejected pin is never acted on and never fails silently: it emits a
+        `dio.gpio_rejected` warning with a machine-readable `reason`
+        ("pin_not_allowed", "owned_by_link", "bad_level"). The link's input
+        pins (14, 25) are refused in every mode, and its output pins (26, 27)
+        unless the node is in manual mode; a node without dio counts as not
+        manual. GPIO26 (TX_DATA) is the dio.tx line, so writing it also puts
+        the level on the virtual wire.
+
+        TODO(S3): the real firmware does not execute set_gpio yet -- there is
+        no experiment runtime on the node until S3. This is the behaviour the
+        firmware must match, and until then sim and hardware differ here.
+        """
+        manual = self._dio is not None and self._dio.config.manual
+        pin = gpio if isinstance(gpio, int) and not isinstance(gpio, bool) else -1
+        reason = dio_link.output_rejection_reason(pin, manual=manual)
+        if reason is None and level not in (0, 1):
+            reason = "bad_level"
+        if reason is not None:
+            # -1 stands for "not a usable number", as the firmware reports an unset level.
+            await self._emit_event("dio.gpio_rejected", severity="warning", data={
+                "gpio": pin, "level": level if isinstance(level, int) and not isinstance(level, bool) else -1,
+                "reason": reason})
+            return False
+        if gpio == dio_link.PIN_TX_DATA:
+            self._write_tx(level)
+        else:
+            self.gpio_out[gpio] = level
+        await self._emit_event("dio.gpio", data={"gpio": gpio, "level": level})
+        return True
+
+    def _write_tx(self, level: int) -> None:
+        self.gpio_out[dio_link.PIN_TX_DATA] = level
+        dio = self._dio
+        if dio is not None and dio.out_wire is not None:
+            dio.out_wire.send_level(level, dio.config.clock_us())
+
+    def dio_attach_out(self, wire: Any) -> None:
+        dio = self._require_dio()
+        dio.out_wire = wire
+        wire.reset_level(self.gpio_out.get(dio_link.PIN_TX_DATA, 0))
+
+    def dio_attach_in(self, wire: Any) -> None:
+        self._require_dio().in_wire = wire
+
+    def _require_dio(self) -> _DioRuntime:
+        if self._dio is None:
+            raise ValueError(f"node {self.node_id} has no dio link enabled (enable_dio())")
+        return self._dio
+
+    def _dio_on_boot(self) -> None:
+        # Pin state and link counters live in RAM: a reboot clears them.
+        self.gpio_out.clear()
+        dio = self._dio
+        if dio is None:
+            return
+        dio.monitor = dio_link.LinkMonitor()
+        dio.tx_seq = dio.frames_sent = 0
+        dio.link_state = "init"
+        dio.consec_timeouts = 0
+        dio.last_rtt_us = None
+        if dio.out_wire is not None:
+            dio.out_wire.send_level(0, dio.config.clock_us())
+
+    def dio_stats(self) -> dict[str, Any]:
+        """Read-only snapshot of the link, for tests and debugging."""
+        dio = self._require_dio()
+        st = dio.monitor.stats
+        return {
+            "link_state": dio.link_state, "tx": self.gpio_out.get(dio_link.PIN_TX_DATA, 0),
+            "rx": dio.rx_level, "edges_rx": dio.edges_rx, "last_rtt_us": dio.last_rtt_us,
+            "handshakes_ok": dio.handshakes_ok, "handshakes_timeout": dio.handshakes_timeout,
+            "frames_sent": dio.frames_sent, "frames_ok": st.frames_ok,
+            "frames_crc_err": st.frames_crc_err, "frames_len_err": st.frames_len_err,
+            "frames_err": st.frames_err, "bits_rx": st.bits_rx, "bit_errors": st.bit_errors,
+            "ber": st.ber, "expected_seq": dio.monitor.expected,
+        }
+
+    async def dio_step(self, dt: float) -> None:
+        """Advance the digital-link emulation by `dt` seconds. Called from
+        the master tick; tests call it directly with a fake clock."""
+        dio = self._dio
+        if dio is None:
+            return
+        now_us = dio.config.clock_us()
+        cfg = dio.config
+
+        # (a) level: demo stimulus on dio.tx, then whatever reached dio.rx.
+        if cfg.blink_hz > 0 and not cfg.manual:
+            dio.blink_accum += dt
+            half = 0.5 / cfg.blink_hz
+            if dio.blink_accum >= half:
+                dio.blink_accum -= half
+                self._write_tx(1 - self.gpio_out.get(dio_link.PIN_TX_DATA, 0))
+        if dio.in_wire is not None:
+            for _t_us, level in dio.in_wire.poll(now_us):
+                dio.rx_level = level
+                dio.edges_rx += 1
+            # Like the firmware's publish_edges(): edges are counted as they
+            # arrive and reported (rate limited) from the housekeeping pass,
+            # with the running total, not one event per edge.
+            if dio.edges_rx != dio.edges_reported:
+                dio.edges_reported = dio.edges_rx
+                await self._dio_event_limited(
+                    "dio.edge", "dio.edge", now_us, "debug", {"level": dio.rx_level, "count": dio.edges_rx})
+
+            # (c) frames: decode whatever bursts the wire delivered.
+            for bits in dio.in_wire.pop_frames(now_us):
+                gap = [0] * dio_link.IDLE_GAP_BITS
+                for report in dio.monitor.feed_bits(list(bits) + gap):
+                    await self._dio_frame_report(dio, report, now_us)
+
+        # (c) frames: send a burst of test frames on the out wire.
+        if not cfg.manual and dio.out_wire is not None and cfg.burst_period_s > 0 and cfg.frames_per_burst > 0:
+            dio.burst_accum += dt
+            if dio.burst_accum >= cfg.burst_period_s:
+                dio.burst_accum -= cfg.burst_period_s
+                for _ in range(cfg.frames_per_burst):
+                    frame = dio_link.build_frame(dio_link.testframe_payload(dio.tx_seq))
+                    dio.tx_seq += 1
+                    dio.frames_sent += 1
+                    dio.out_wire.carry_frame(dio_link.frame_to_bits(frame), now_us)
+
+        # (b) handshake (N2): round trip out the tx wire and back the rx wire.
+        if cfg.handshake_hz > 0 and not cfg.manual:
+            dio.hs_accum += dt
+            if dio.hs_accum >= 1.0 / cfg.handshake_hz:
+                dio.hs_accum -= 1.0 / cfg.handshake_hz
+                await self._dio_handshake(dio, now_us)
+
+    async def _dio_handshake(self, dio: _DioRuntime, now_us: int) -> None:
+        out, back = dio.out_wire, dio.in_wire
+        rtt: int | None = None
+        # The reply must come from the node that heard us: a return wire from
+        # anyone else is not a responder.
+        if out is not None and back is not None and out.rx_id == back.tx_id:
+            t_out = out.transit_us()
+            t_back = back.transit_us() if t_out is not None else None
+            if t_out is not None and t_back is not None:
+                rtt = max(1, int(round(t_out + t_back)))
+        if rtt is None:
+            dio.handshakes_timeout += 1
+            dio.consec_timeouts += 1
+            if dio.consec_timeouts >= dio.config.lost_after_timeouts and dio.link_state != "lost":
+                dio.link_state = "lost"
+                await self._emit_event("link.lost", severity="warning", data={
+                    "timeouts": dio.consec_timeouts, "samples": dio.handshakes_ok,
+                    "reason": "handshake_timeout"})
+            return
+        dio.handshakes_ok += 1
+        dio.consec_timeouts = 0
+        dio.last_rtt_us = rtt
+        if dio.link_state != "up":
+            dio.link_state = "up"
+            await self._emit_event("link.up", data={"rtt_us": rtt, "timeouts": dio.handshakes_timeout})
+        rt = self._channels["link.rtt_us"]
+        rt._last_value = rtt
+        await self._emit_samples([(rt.ndb.id, protocol_spec.encoding_by_name()["u32"], rtt)])
+
+    async def _dio_frame_report(self, dio: _DioRuntime, r: dio_link.FrameReport, now_us: int) -> None:
+        # Same order and same keys as the firmware's handle_rx().
+        stats = dio.monitor.stats
+        if r.status == "ok":
+            if r.missed:
+                await self._dio_event_limited("link.lost.frames", "link.lost", now_us, "warning", {
+                    "missed": r.missed, "seq": r.expected_seq, "reason": "frames_missed"})
+            await self._dio_event_limited("link.frame_ok", "link.frame_ok", now_us, "info", {
+                "frames_ok": stats.frames_ok, "len": r.length})
+        else:
+            await self._dio_event_limited("link.crc_err", "link.crc_err", now_us, "warning", {
+                "frames_err": stats.frames_err, "len": r.length,
+                "reason": "len" if r.status == "len_err" else "crc"})
+
+    async def _dio_event_limited(
+        self, key: str, code: str, now_us: int, severity: str, data: dict[str, Any]
+    ) -> None:
+        """Emit `code` unless its "N per W ms" limiter refuses it. `suppressed`
+        is added only when something was actually swallowed, and only here, so
+        only events that have a limiter can carry it."""
+        dio = self._require_dio()
+        limiter = dio.limiters.get(key)
+        if limiter is None:
+            window_ms, max_in_window = dio.config.event_limits[key]
+            limiter = dio.limiters[key] = dio_link.RateLimit(window_ms, max_in_window)
+        if not limiter.allow(now_us // 1000):
+            return
+        suppressed = limiter.take_suppressed()
+        await self._emit_event(code, severity=severity, data={**data, **({"suppressed": suppressed} if suppressed else {})})
+
     # -- fault injection ----------------------------------------------------
 
     def apply_fault(self, kind: str, **kwargs: Any) -> dict[str, Any]:
@@ -448,6 +815,8 @@ class SimNode:
                 if due_samples:
                     await self._emit_samples(due_samples)
 
+                await self.dio_step(dt)
+
                 self._evaluate_burst_expiry()
                 if self.run_state == "running":
                     await self._advance_experiment()
@@ -488,6 +857,8 @@ class SimNode:
         _ = self._temp_phase  # phase kept for readability of the formula below
 
     def _sample_channel_value(self, key: str) -> Any:
+        """Current value, or None when the channel has nothing to say right
+        now (it is then skipped rather than published as a made-up zero)."""
         t = time.time()
         if key == "sys.heap_free":
             return self.heap_free
@@ -509,6 +880,20 @@ class SimNode:
                 self._adc_transient_value = self._rng.uniform(2.8, 3.3)
                 return self._adc_transient_value
             return 1.65 + self._rng.uniform(-0.02, 0.02)
+        dio = self._dio
+        if dio is not None:
+            if key == "dio.tx":
+                return self.gpio_out.get(dio_link.PIN_TX_DATA, 0)
+            if key == "dio.rx":
+                return dio.rx_level
+            if key == "link.frames_ok":
+                return dio.monitor.stats.frames_ok
+            if key == "link.frames_err":
+                return dio.monitor.stats.frames_err
+            if key == "link.ber":
+                return dio.monitor.stats.ber
+            if key == "link.rtt_us":
+                return None  # event-driven: published when a handshake completes
         return 0.0
 
     def _collect_due_samples(self, dt: float) -> list[tuple[int, int, Any]]:
@@ -525,6 +910,8 @@ class SimNode:
                 value = rt._last_value
             else:
                 value = self._sample_channel_value(key)
+                if value is None:
+                    continue
                 rt._last_value = value
             enc_name = rt.enc_name or rt.ndb.type
             enc_code = protocol_spec.encoding_by_name().get(enc_name)
@@ -682,7 +1069,7 @@ class SimNode:
             elif kind == "reboot":
                 await self._do_reboot()
             elif kind == "set_gpio":
-                await self._emit_log(3, "gpio", f"gpio={action.gpio} level={action.level}")
+                await self.set_gpio(action.gpio, action.level)
 
 
 class SimTransport(Transport):

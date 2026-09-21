@@ -42,6 +42,7 @@ class Settings:
     port: int = DEFAULT_PORT
     db_path: Path = DEFAULT_DB_PATH
     sim_preload: int = 0
+    sim_dio: bool = False  # also attach two simulated nodes joined by a virtual cable
 
 
 class LinkCreateBody(BaseModel):
@@ -100,6 +101,8 @@ def create_app(settings: Settings | None = None, *, store: Store | None = None) 
         await runtime.start()
         if settings.sim_preload > 0:
             await runtime.attach_sim(settings.sim_preload)
+        if settings.sim_dio:
+            await runtime.attach_sim_dio_pair()
 
     @app.on_event("shutdown")
     async def _shutdown() -> None:
@@ -310,7 +313,10 @@ def create_app(settings: Settings | None = None, *, store: Store | None = None) 
         node_id = payload.pop("node_id", None)
         try:
             return runtime.sim_network.apply_fault(kind, node_id=node_id, **payload)
-        except (KeyError, ValueError) as exc:
+        except (KeyError, ValueError, TypeError) as exc:
+            # TypeError is defence in depth: the simulator turns bad wire
+            # values into ValueError itself, but a fault body is arbitrary
+            # JSON and a client mistake must never surface as a 500.
             raise HTTPException(status_code=400, detail=str(exc))
 
     # -- WebSocket --------------------------------------------------------

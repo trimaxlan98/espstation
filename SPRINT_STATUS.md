@@ -87,3 +87,146 @@ seguridad, no la excepción.
   funcione directamente (ver `docs/SETUP.md`).
 - El `uint32` de ms del nodo da la vuelta a los ~49.7 días; el manejo del wrap
   en el gateway está especificado (D-10) pero **no implementado**.
+
+---
+
+# Slice fuera de banda — enlace digital entre ESP32
+
+**ESTADO: implementado y verificado SIN hardware; NADA verificado en placa.**
+Registrado en `docs/ROADMAP.md` como slice fuera de banda (no es S1). Decisiones:
+D-16 … D-21. Contrato del enlace: `bench/practicas/enlace-digital/SPEC-LINK.md`.
+Prompt para verificar en hardware: `docs/plans/PRACTICA-enlace-digital.hardware-verification.prompt.md`.
+**Commiteado en la rama `feat/enlace-digital`** (3 commits: Fase 0 `bench/`, Fase 1
+código + protocolo + gates, documentación), **sin push ni merge a `main`**.
+
+## Hecho y verificado (salida real, esta máquina)
+
+- [x] Fase 0: 4 sketches Arduino (`n1_nivel/{emisor,receptor}`, `n2_handshake`,
+      `n3_bytes`) **compilan** con `arduino-cli` 1.5.1 + core `esp32:esp32` 3.3.11
+      (variantes `ROL_B` incluidas; los `#error` de rol disparan).
+- [x] `esps_dio` parte pura (CRC-8, trama, receptor bit a bit, BER, generador,
+      pines, política) — `make -C firmware/test/host test` verde; barrido de
+      bit-flips: 13 `FRAME_OK` espurios en 8000 volteos de LEN, 0 en 139 976 de
+      payload/CRC.
+- [x] `esps_dio` capa ESP-IDF + `main.c` (HELLO troceado): `esp32dev`,
+      `esp32dev_dio_a`, `esp32dev_dio_b` **compilan** (RAM 14 848 / 15 024 /
+      15 992 B; con `ROLE=0` RAM idéntica a S0 y ningún símbolo de `esps_dio`).
+- [x] Simulador: cable virtual, `set_gpio` real, `--sim-dio`; `make gateway-run`
+      muestra dos nodos hablando (RTT medio 80 µs con 40 µs por sentido, BER
+      ~3–6e-4). `pytest gateway/tests` → 160 passed.
+- [x] `make check` en verde (contracts, fw-test, gateway 160, desktop 64).
+      `tools/check_protocol.py` → 55 checks. Protocolo: sólo una frase aclaratoria
+      en §4.1 (D-20), sin cambio de trama ni de campos.
+- [x] **Desktop sin cambios**: verificado con la UI real (renderer servido +
+      Chromium headless) — los 6 canales aparecen como chips, `DIO RX` sigue a
+      `DIO TX`, el rail muestra `dio.edge`/`link.crc_err`/`link.lost`/`link.frame_ok`.
+
+## NO hecho / NO verificado
+
+- [ ] **Todo en hardware**: N1 (5 min + cable desconectado), N2 (RTT 1000
+      intercambios), N3 (BER 1000 tramas + límite de velocidad), y el firmware
+      `esps_dio` en placa. Las secciones `Resultados N1/N2/N3` del README dicen
+      PENDIENTE. **Ninguna cifra de latencia, BER o límite de velocidad existe aún.**
+- [x] **Correcciones a la revisión (2026-09-20), verificadas por el orquestador:**
+      **A1, A2, A3, M1, M2, B1, B2 corregidos.** `make check` verde (275 gateway,
+      64 desktop, host firmware); `esp32dev`/`dio_a`/`dio_b` compilan;
+      `ROLE=0` sin símbolos de `esps_dio`; B1/B2 comprobados en vivo (400 con
+      `null`, `1e400`, `NaN`); eventos del simulador capturados por WS con las
+      claves exactas de la tabla del SPEC. Cambios: pila 3072→**6144 B** (medida
+      con objdump: ~3760 B + interrupción + ISR; **es análisis estático, no
+      medición en placa**; +3 KB de heap, no aparece en el RAM de `pio`);
+      `esps_dio_start()` ahora **antes** del bucle de apertura del UART (D-1);
+      el nodo reanuncia hasta recibir tantos ACK como trozos de HELLO; el modo
+      manual ya no libera 14/25; eventos alineados firmware↔sim (tabla en
+      SPEC-LINK); log de muestras de canal desconocido en el gateway.
+      **Notas honestas:** (a) A2 supone que el gateway responde un ACK por HELLO
+      (lo hace, `runtime.py`); no se probó contra un nodo real. (b) Hay una
+      carrera menor teórica: `hello_task` reinicia `g_hello_acks` mientras
+      `on_frame` puede incrementarlo; sólo se manifestaría con un ACK tardío de la
+      ronda anterior. (c) A3 hace que el log de `esps_dio` salga por UART0 antes
+      de instalar el hook de logs: unas líneas sin trama al arrancar, que el
+      gateway ya muestra como salida cruda. (d) Se **eliminó** el evento
+      `dio.gpio_rejected` por pin mal configurado al arrancar (ya no podía
+      entregarse, sin sink; sigue el `ESP_LOGE`). (e) `link.crc_err` con
+      `reason:"len"` lleva `len: 0` siempre (contrato ajustado, el receptor
+      descarta el byte).
+- [x] **Segunda tanda de correcciones (M3, M4, B3–B10), 2026-09-20, verificadas
+      por el orquestador:** `make check` verde en 29 s (55 contratos, host de
+      firmware, **`bench-test` 91 comprobaciones**, 285 gateway, 64 desktop); los
+      tres builds compilan; `ROLE=0` sin símbolos de `esps_dio`; el sketch N3
+      compila con `arduino-cli`. **M3:** el sketch N3 ahora tiene test en el repo
+      (`make bench-test`, en CI): compila el `.ino` real contra un mock de Arduino,
+      vectores dorados, barrido 13/0, enlace TX→RX y 11 escenarios contra
+      `LinkMonitor`; 11/11 mutaciones detectadas, `.ino` intacto (md5). **M4:**
+      `PROTOCOL.md` §4.1 y D-20 dicen ahora que es un cambio de *comportamiento*
+      de la estación, no sólo una aclaración. **B3:** en vez de poner a cero se
+      escriben los 34 bytes (con `_Static_assert` de que no hay relleno); verificado
+      en el desensamblado que ningún callee de las ISR está en flash (memcpy es
+      ROM). **B4:** lectura volátil en el punto de uso, sin tocar la estructura
+      pura. **B5:** comentarios corregidos (dos sitios). **B6:** `_Static_assert`
+      de que 3+6 canales caben, más log si alguna vez se trunca. **B7:** N3 escribe
+      el latch antes de `pinMode`. **B8–B10:** cola acotada sin bloquear,
+      `enable_dio` tras `start` lanza `RuntimeError`, HELLOs del mismo nodo y
+      enlace a <5 s comparten `session` (un ACK y un ancla de time-sync por trozo).
+      **Límites:** el test del sketch prueba lógica, no temporización; N1 y N2 siguen
+      sin test en el repo; el paso de CI (2 pythons) sólo se validó como YAML, no se
+      ejecutó en un runner de GitHub.
+- [x] **Revisión adversarial (reviewer Opus) completada el 2026-09-20** (segundo
+      intento; el primero murió por límite de API). 0 críticos, **3 altos, 4
+      medios, 10 bajos.** *Todos corregidos (ver el bloque siguiente).*
+      Hallazgos originales: Los tres altos, con su
+      verificación por el orquestador:
+      - **A1 — pila de la tarea `esps_dio` (3072 B) insuficiente.** El reviewer
+        midió con `objdump` sobre el ELF ~2496 B en el camino evento→JSON→ENLP
+        (`esps_dio.c:115`, comentario `:962-967` describe otro camino, ~70 B).
+        Overflow con canary = panic en la primera sesión de banco. *Constante y
+        comentario verificados; la suma de frames es del reviewer, no recalculada.*
+        Arreglo: 5120–6144 B o publicar eventos desde otra tarea.
+      - **A2 — `g_hello_acked` con el primer `HELLO_ACK`.** El gateway responde un
+        ACK por cada trozo; si el trozo 2 se pierde nunca se reenvía y el gateway
+        descarta sus muestras en silencio (`main.c:734`, `runtime.py:225-256`).
+        *Verificado.* Arreglo: exigir ACK posterior al último trozo, o reanunciar.
+      - **A3 — D-1 roto si el UART no abre.** `esps_dio_start()` (`main.c:806`)
+        va después del bucle infinito de apertura del enlace (`main.c:785`).
+        *Verificado.* Arreglo: arrancar `esps_dio` antes del bucle.
+      Medios: M1 el modo manual permite `set_gpio` en 14/25 (las entradas del enlace)
+      y reintroduce contención; M2 deriva firmware↔sim en eventos de `len_err`;
+      M3 el sketch N3 es la única implementación sin test en el repo (verificado
+      a mano por el reviewer: hoy sin deriva); M4 la frase de §4.1 impone a la
+      estación "nunca borrar canales", que es un requisito normativo y no sólo
+      una aclaración. Bajos: B1 `POST /api/sim/fault` con `loss:null` → 500; B2
+      `WireConfig` acepta `inf`/`nan`; B3–B10 (cola ISR sin inicializar, `state` sin
+      `volatile`, comentario de afinidad falso, `collect_ndb` trunca sin log, orden
+      `pinMode`/latch en N3, `put_nowait`, `enable_dio` tras `start`, N sesiones por
+      HELLO troceado). **Sin deriva** entre las tres implementaciones del enlace
+      (contra-pruebas independientes del reviewer; barrido 13/0 reproducido).
+      *No pudo auditar:* nada de lo que se decide en placa; leyó por encima los
+      tests del simulador.
+- [ ] El primer flasheo de `esps_dio` es también la primera ejecución real del
+      firmware base (S1 sigue sin validarse). `tools/enlp_sniff.py` sigue sin existir.
+- [ ] `set_gpio` **no es alcanzable desde la estación en hardware real** hasta S3
+      (no hay runtime de experimentos; añadir un CMD sería cambio de protocolo).
+      Sí funciona en el simulador vía trigger sobre pin libre.
+- [ ] Hipótesis de firmware sin medir (ver D-21): IRAM evita errores durante
+      escrituras NVS, 10 kbit/s sostenido, ISR de RX al ritmo, stack de 6144 B,
+      GPIO14 con PWM al arrancar (conocimiento general, no medido); y el stall de
+      hasta ~370 ms que la espera activa (prio 11, core 1) puede causar a las
+      tareas UART si el planificador las coloca en el mismo core: el RX del
+      driver (2048 B) desbordaría con tráfico continuo de la estación durante
+      una ráfaga. Hoy la estación sólo manda CMDs ocasionales.
+- [ ] Extensión de bus con direccionamiento (4 placas): no implementada.
+- [x] ~~`len_err` sin evento en el firmware~~ — resuelto (M2): ambos emiten
+      `link.crc_err` con `reason:"len"`, misma tabla de eventos y mismos límites.
+- [ ] Debilidad medida del formato: CRC-8 no protege `LEN` (0,16 % de falsos OK).
+- [ ] Límites de presentación de Live (no del NDB): un solo eje Y y máx. 4 canales
+      → mezclar `DIO TX` (0/1) con `Link RTT` (~80) aplasta el TX. Un panel de
+      analizador lógico sería trabajo aparte.
+- [ ] Bug de desktop **observado, no investigado**: en Live el trazo del gráfico
+      se corta a los pocos segundos aunque la API sigue entregando muestras (la
+      última muestra tenía 0,1 s). **Reproducido también en `sim-1001` (`adc.a0`)**,
+      un nodo que no toca este slice, así que no lo introdujo. No se comparó
+      contra el commit de S0 ni se buscó la causa; el eje de tiempo también
+      superpone etiquetas a la derecha.
+- [ ] El estado de `.venv-tools` cambió: ahora Python 3.13 (uv); el de 3.14 quedó
+      en el scratchpad de la sesión. `desktop/build/icons/*` siguen borrados en el
+      working tree desde antes (no son de este trabajo).

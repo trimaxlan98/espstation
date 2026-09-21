@@ -7,6 +7,12 @@
 int test_crc16_all(void);
 int test_cobs_all(void);
 int test_enlp_all(void);
+int test_dio_crc8_all(void);
+int test_dio_frame_all(void);
+int test_dio_stats_all(void);
+int test_dio_testgen_all(void);
+int test_dio_pins_all(void);
+int test_dio_policy_all(void);
 
 int main(void) {
     int fails = 0;
@@ -17,6 +23,18 @@ int main(void) {
     fails += test_cobs_all();
     fprintf(stderr, "== enlp ==\n");
     fails += test_enlp_all();
+    fprintf(stderr, "== dio_crc8 ==\n");
+    fails += test_dio_crc8_all();
+    fprintf(stderr, "== dio_frame ==\n");
+    fails += test_dio_frame_all();
+    fprintf(stderr, "== dio_stats ==\n");
+    fails += test_dio_stats_all();
+    fprintf(stderr, "== dio_testgen ==\n");
+    fails += test_dio_testgen_all();
+    fprintf(stderr, "== dio_pins ==\n");
+    fails += test_dio_pins_all();
+    fprintf(stderr, "== dio_policy ==\n");
+    fails += test_dio_policy_all();
 
     if (fails == 0) {
         printf("ALL TESTS PASSED\n");

@@ -159,7 +159,23 @@ arrives. Idempotent.
 **The `ndb` (Node Database) is the channel contract.** The station never
 hard-codes channel ids; every chart, unit and limit is driven by what the node
 declares. A node may extend its NDB at runtime (a new sensor is attached) by
-re-sending `HELLO`.
+re-sending `HELLO`. The same rule covers an NDB too large for one frame: when
+the descriptor would exceed the frame's payload limit, the node announces it as
+several complete `HELLO`s, each carrying a slice of `ndb`.
+
+This paragraph is a **requirement on the station**, not just a description:
+
+- On every further `HELLO` from a node the station **merges** the `ndb` it
+  receives into the one it holds, by channel `id`/`key`. It never replaces the
+  NDB with the last slice, and it never deletes a channel it already knows — a
+  slice is not a statement that other channels are gone.
+- The station answers **every** `HELLO` with a `HELLO_ACK`.
+- A node announcing in slices keeps re-announcing all of them until it has
+  received one accepted `HELLO_ACK` per slice of the current round.
+
+No frame, message type or field changed; the behaviour above is what changed —
+see D-20. `tools/check_protocol.py` compares frames and fields, so it cannot
+enforce these rules; the gateway's tests do.
 
 Channel id ranges: `1–15` system, `16–127` experiment/sensor, `128–255`
 reserved for network diagnostics.
