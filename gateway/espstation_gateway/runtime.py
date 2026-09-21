@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import time
 from typing import Any, Awaitable, Callable
 
@@ -18,9 +19,19 @@ from .store import Store
 from .transports.base import Link, LinkEvent, RawFrameDecoder
 from .transports.serial_port import SerialTransport
 from .transports.sim.network import SimNetwork
-from .transports.sim.node import SimTransport
+from .transports.sim.node import DioConfig, SimNode, SimTransport
 from .transports.tcp import LengthPrefixDecoder, TcpTransport
 from .protocol.frames import StreamingDecoder
+
+log = logging.getLogger(__name__)
+
+# Two HELLOs from the same node over the same link, less than this many
+# seconds apart, are chunks of ONE announcement (a NDB too big for one frame
+# goes out as several HELLOs, sent back to back: milliseconds apart) and share
+# a session. A gap this long or longer means the node came back (reconnect,
+# reboot, or the 30 s HELLO retry), so a new session opens. 5 s is far above
+# the spacing of chunks on a slow serial link and far below the 30 s retry.
+HELLO_ANNOUNCE_GAP_S = 5.0
 
 Subscriber = Callable[[dict[str, Any]], "Awaitable[None] | None"]
 
@@ -38,6 +49,15 @@ class GatewayRuntime:
         self.sim_network = SimNetwork()
         self._hello_by_node: dict[int, msg.Hello] = {}
         self._heartbeat_by_node: dict[int, msg.Heartbeat] = {}
+        # node id -> channel id -> samples dropped because the channel is not
+        # in that node's NDB. Filled in silence otherwise: with a chunked
+        # HELLO, a lost chunk means charts that never appear.
+        self.unknown_channel_samples: dict[int, dict[int, int]] = {}
+        # node id -> (link id, monotonic time of the last HELLO chunk, session
+        # id). Injectable clock so the announcement window is testable.
+        self._now: Callable[[], float] = time.monotonic
+        self._announcements: dict[int, tuple[str, float, str]] = {}
+        self._last_session_ms: dict[int, int] = {}
 
         self._link_seq = 0
         self._cmd_id_seq = 0
@@ -112,7 +132,25 @@ class GatewayRuntime:
         return await self._start_link(link, {"host": host, "port": port})
 
     async def attach_sim(self, count: int = 1, *, label_prefix: str = "sim") -> list[Link]:
-        nodes = self.sim_network.spawn(count, label_prefix=label_prefix)
+        return await self._attach_sim_nodes(self.sim_network.spawn(count, label_prefix=label_prefix))
+
+    async def attach_sim_dio_pair(
+        self, *, label_prefix: str = "dio", delay_us: float = 40.0, loss: float = 0.005,
+        glitch_rate: float = 0.2, bit_error_rate: float = 3e-4, jitter_us: float = 4.0,
+        blink_hz: float = 0.5,
+    ) -> list[Link]:
+        """Two simulated nodes joined by a virtual two-wire cable (one wire
+        per direction), with defaults lively enough to give the charts
+        something to show: a little loss, the odd glitch, a small non-zero
+        BER. `blink_hz` toggles each node's dio.tx as demo stimulus."""
+        a, b = self.sim_network.spawn(2, label_prefix=label_prefix, dio=DioConfig(blink_hz=blink_hz))
+        wire = dict(delay_us=delay_us, loss=loss, glitch_rate=glitch_rate,
+                    bit_error_rate=bit_error_rate, jitter_us=jitter_us)
+        self.sim_network.connect_wire(a.node_id, b.node_id, **wire)
+        self.sim_network.connect_wire(b.node_id, a.node_id, **wire)
+        return await self._attach_sim_nodes([a, b])
+
+    async def _attach_sim_nodes(self, nodes: list[SimNode]) -> list[Link]:
         links = []
         for node in nodes:
             transport = SimTransport(node)
@@ -214,9 +252,15 @@ class GatewayRuntime:
             ndb=[c.model_dump() for c in hello.ndb],
         )
         now_us = int(time.time() * 1_000_000)
+        # One anchor per chunk, on purpose: each chunk carries the node's
+        # current uptime and is a valid (if coarse) measurement of the clock
+        # offset, so a chunked announcement just gives a few more of them.
         self.store.record_time_sync(hello.node_id, now_us, hello.boot.uptime_ms, hello.boot.uptime_ms, now_us)
+        session = self._announcement_session(link, hello.node_id)
+        # An ACK for EVERY chunk, all carrying the announcement's session: the
+        # node counts accepted ACKs to know its whole NDB was received.
         ack = msg.HelloAck(
-            session=f"sess-{hello.node_id}-{int(time.time() * 1000)}",
+            session=session,
             host_time=time.time(), accepted=True,
             policy=msg.HelloAckPolicy(telemetry_rate_limit_hz=float(protocol_spec.timing().get("telemetry_rate_limit_hz", 200))),
         )
@@ -225,6 +269,23 @@ class GatewayRuntime:
         summary = self.node_summary(hello.node_id)
         if summary is not None:
             await self._publish("node", summary)
+
+    def _announcement_session(self, link: Link, node_id: int) -> str:
+        """Session id for a HELLO just received: the announcement's own if this
+        is a follow-on chunk (same link, < HELLO_ANNOUNCE_GAP_S after the
+        previous chunk), otherwise a new one fixed by this first chunk."""
+        now = self._now()
+        known = self._announcements.get(node_id)
+        if known is not None and known[0] == link.id and now - known[1] < HELLO_ANNOUNCE_GAP_S:
+            session = known[2]
+        else:
+            # Milliseconds, forced strictly increasing per node so two sessions
+            # opened in the same millisecond still get different ids.
+            ms = max(int(time.time() * 1000), self._last_session_ms.get(node_id, 0) + 1)
+            self._last_session_ms[node_id] = ms
+            session = f"sess-{node_id}-{ms}"
+        self._announcements[node_id] = (link.id, now, session)
+        return session
 
     async def _on_telemetry(self, node_id: int, frame_seq: int, telemetry: msg.Telemetry) -> None:
         ndb = self.registry.get(node_id)
@@ -236,6 +297,7 @@ class GatewayRuntime:
             try:
                 value = ndb.convert(s.ch, s.value) if ndb is not None else s.value
             except UnknownChannelError:
+                self._note_unknown_channel(node_id, s.ch)
                 continue
             rows.append((s.ch, ts, float(value)))
             channel = ndb.by_id(s.ch).key if ndb is not None else str(s.ch)
@@ -254,6 +316,17 @@ class GatewayRuntime:
         replay = "replay" in telemetry.flag_set()
         for sample in ws_samples:
             await self._publish("telemetry", {"node_id": node_id, **sample, "replay": replay})
+
+    def _note_unknown_channel(self, node_id: int, channel_id: int) -> None:
+        counts = self.unknown_channel_samples.setdefault(node_id, {})
+        first = channel_id not in counts
+        counts[channel_id] = counts.get(channel_id, 0) + 1
+        if first:  # once per (node, channel): the running count is on the node detail
+            log.warning(
+                "node %d: dropping samples for channel id %d, which is not in its NDB "
+                "(a HELLO chunk that never arrived?); further drops are counted, not logged",
+                node_id, channel_id,
+            )
 
     def _on_exp_state(self, node_id: int, state: msg.ExpState) -> None:
         if state.state == "running":
@@ -376,6 +449,9 @@ class GatewayRuntime:
         hello = self._hello_by_node.get(node_id)
         summary["ndb"] = [c.model_dump() for c in ndb.channels_by_id.values()] if ndb else []
         summary["caps"] = json.loads(row["caps_json"]) if row and row["caps_json"] else []
+        summary["unknown_channel_samples"] = {
+            str(ch): n for ch, n in sorted(self.unknown_channel_samples.get(node_id, {}).items())
+        }
         summary["boot"] = hello.boot.model_dump() if hello else {"count": 0, "reason": "unknown", "uptime_ms": 0}
         return summary
 

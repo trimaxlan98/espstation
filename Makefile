@@ -10,7 +10,7 @@ GW_PY    := gateway/.venv/bin/python
 FW_ENV   ?= esp32dev
 PORT     ?= /dev/ttyUSB0
 
-.PHONY: help check contracts fw-test fw-build fw-flash fw-monitor \
+.PHONY: help check contracts fw-test bench-test fw-build fw-flash fw-monitor \
         gateway-test gateway-run desktop-test desktop-dev sniff clean
 
 help:
@@ -19,11 +19,12 @@ help:
 	@echo "  make check          all gates that need no hardware (what CI runs)"
 	@echo "  make contracts      protocol drift + agent-role sync"
 	@echo "  make fw-test        firmware codec tests on the host (gcc + sanitizers)"
+	@echo "  make bench-test     Arduino N3 sketch (real .ino, host g++) vs SPEC-LINK + dio_link.py"
 	@echo "  make fw-build       build firmware        [FW_ENV=$(FW_ENV)]"
 	@echo "  make fw-flash       build and upload      [FW_ENV=$(FW_ENV)]"
 	@echo "  make fw-monitor     serial monitor        [PORT=$(PORT)]"
 	@echo "  make gateway-test   gateway pytest"
-	@echo "  make gateway-run    gateway with simulated nodes on :8787"
+	@echo "  make gateway-run    gateway with simulated nodes + a virtual-cable pair on :8787"
 	@echo "  make desktop-test   typecheck + vitest + build"
 	@echo "  make desktop-dev    launch the app (needs a gateway running)"
 	@echo "  make sniff          decoded ENLP frame dump [PORT=$(PORT)]"
@@ -32,7 +33,7 @@ help:
 
 # Everything verifiable without an ESP32 attached. Ordered cheapest-first, so a
 # protocol mistake surfaces in seconds rather than after a desktop build.
-check: contracts fw-test gateway-test desktop-test
+check: contracts fw-test bench-test gateway-test desktop-test
 	@echo ""
 	@echo "All hardware-free gates passed."
 
@@ -42,6 +43,14 @@ contracts:
 
 fw-test:
 	$(MAKE) -C firmware/test/host test
+
+# The Arduino sketch of the bench practice is the third implementation of the
+# two-wire link (esps_dio in C and dio_link.py are the others). This includes
+# the REAL .ino on a minimal host mock and checks it against SPEC-LINK.md and
+# LinkMonitor, so the three cannot drift silently. Needs g++ and the gateway
+# venv (CI: `make bench-test GW_PY=python`). Proves logic only, never timing.
+bench-test:
+	$(GW_PY) bench/practicas/enlace-digital/tests/run_tests.py
 
 fw-build:
 	$(PIO) run -d firmware -e $(FW_ENV)
@@ -56,7 +65,7 @@ gateway-test:
 	$(GW_PY) -m pytest gateway/tests/ -q
 
 gateway-run:
-	$(GW_PY) -m espstation_gateway --sim --port 8787
+	$(GW_PY) -m espstation_gateway --sim --sim-dio --port 8787
 
 desktop-test:
 	cd desktop && npm run typecheck && npm test && npm run build

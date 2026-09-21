@@ -1,0 +1,34 @@
+# IRAM placement for the receive path of the digital link.
+#
+# esps_dio_rx_push_bit() and esps_dio_crc8() are called from the RX_CLK
+# interrupt handler, which is registered with ESP_INTR_FLAG_IRAM so that it
+# keeps firing while the flash cache is disabled. Code in flash is unreachable
+# in that window, so calling a flash-resident function from such a handler is
+# not "slow", it is a crash.
+#
+# Why the handler needs that flag at all: this node writes NVS (the boot-count
+# commit at startup, node.set_label from the station), and every flash write
+# disables the cache for hundreds of microseconds to milliseconds. A bit period
+# is 100 us at the default 10 kbit/s, so a masked handler would swallow whole
+# runs of clock edges. The receiver's shift register would then hold half of
+# one frame and half of the next: frames_err up, BER up, and no indication
+# anywhere that the cause was this node writing its own flash rather than the
+# cable being measured. A link-quality instrument that injects its own errors
+# invisibly is worse than none.
+#
+# Object granularity, not symbol granularity: esps_dio_rx_init() is also
+# reached from the handler (the resync request), and these two objects are
+# small enough that pulling esps_dio_frame_build() and the txbits iterator in
+# with them costs a few hundred bytes of IRAM and removes any chance of
+# missing a callee.
+#
+# The placement lives here rather than as IRAM_ATTR in the sources because
+# IRAM_ATTR comes from an ESP-IDF header, and D-4 keeps the pure C11 half of
+# esps_dio compiling under plain gcc for the host tests. Placement is a
+# build-system concern; the code stays portable.
+
+[mapping:esps_dio_iram]
+archive: libesps_dio.a
+entries:
+    frame (noflash)
+    crc8 (noflash)

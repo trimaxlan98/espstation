@@ -50,10 +50,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # esp32dev is the board on the bench. The others are declared in
-        # platformio.ini (D-13) and building them here is the only validation
-        # they get until the hardware exists — worth having, not a substitute.
-        env: [esp32dev, esp32c3]
+        # esp32dev is the board on the bench. esp32c3 is declared in
+        # platformio.ini (D-13) and building it here is the only validation it
+        # gets until the hardware exists — worth having, not a substitute.
+        #
+        # The two dio variants compile code that esp32dev does not: the
+        # interrupt handlers, the bit-bang transmitter and the receiver task
+        # are all behind ESPS_DIO_ROLE, so without these entries a change that
+        # breaks them passes CI. Building them is not a substitute for the
+        # bench either — nothing here proves an edge ever reaches a wire.
+        env: [esp32dev, esp32c3, esp32dev_dio_a, esp32dev_dio_b]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -91,6 +97,11 @@ jobs:
       - name: pytest
         working-directory: gateway
         run: python -m pytest tests/ -q
+      # Third implementation of the two-wire link (Arduino sketch): same golden
+      # vectors and counters as esps_dio and dio_link.py. Lives in this job
+      # because it needs the installed gateway package and the runner's g++.
+      - name: bench sketch N3 (host, vs SPEC-LINK + dio_link)
+        run: make bench-test GW_PY=python
 
   desktop:
     name: desktop (typecheck + test + build)
