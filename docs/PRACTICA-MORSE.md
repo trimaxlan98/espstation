@@ -189,6 +189,14 @@ corchete de la letra que cerró con su código.
 > flanco que cerró el pulso y trae su duración, así que el pulso ocupó
 > `[ts - ms, ts]`. Eso es exacto al milisegundo que midió la placa.
 >
+> **El adaptador del sketch también los manda.** El sketch imprime el símbolo
+> y su duración en dos líneas seguidas, el símbolo primero, así que el
+> adaptador retiene el símbolo —por sentido— hasta la línea siguiente de ese
+> sentido. Si llega su duración, la lleva; si llega otra cosa, el evento sale
+> **sin** `ms` antes que perderse o heredar el número de otro pulso. Hasta el
+> 2026-09-22 no retenía nada y el `ms` se perdía siempre: con el sketch o con
+> una reproducción, la onda no tenía nada que dibujar.
+>
 > **Lo que no puede enseñar:** un pulso sólo existe cuando **ha terminado**,
 > porque hasta entonces la placa no sabe cuánto duró. Mientras mantienes la
 > llave pulsada no hay nada que dibujar; lo que crece es el silencio, y ese
@@ -384,7 +392,7 @@ anchas.
 | `bench/practicas/morse-duplex/tests/run_tests.py` | el `.ino` real sobre un mock del core | 44 pruebas |
 | `bench/practicas/morse-duplex/tests/test_visor.py` | puente `--duplex` y visor, reproduciendo evidencia real | 33 pruebas |
 | `gateway/tests/test_morse_link.py` | vectores dorados; **re-decodifica la evidencia real** y exige las mismas letras que imprimió la placa | 26 pruebas |
-| `gateway/tests/test_morse_sketch.py` | el adaptador; replica **un log entero** en frames válidos | 16 pruebas |
+| `gateway/tests/test_morse_sketch.py` | el adaptador; replica **un log entero** en frames válidos y exige que el símbolo lleve su duración | 24 pruebas |
 | `gateway/tests/test_morse_replay_link.py` | reproducción por REST | 5 pruebas |
 | `desktop` | sección Morse, la onda (`morseWave`), la **cadencia** (`morseCadence`), la sección Sketches y la escritura del `.ino` | 73 pruebas |
 | `firmware/test/host` | **`esps_morse` en C11**: tabla, decodificador y llave, con `-Werror` + ASan/UBSan | 3 suites |

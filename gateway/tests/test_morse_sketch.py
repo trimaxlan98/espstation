@@ -240,3 +240,106 @@ def test_a_corrupt_numeric_field_is_counted_not_raised():
     out = decode_all(dec.feed(b"# RX pulso_ms=180\n"))
     assert {(s.ch, s.value) for s in out[0][1].samples} == {(24, 180), (23, 0)}
     assert dec.malformed == 1
+
+
+# --- the duration that makes the symbol drawable -------------------------
+#
+# The sketch prints a symbol and its length on two consecutive lines, symbol
+# first:
+#       TX .
+#       # TX pulso_ms=62
+# so the adapter has to hold one to build the other. It did not, and every
+# `morse.symbol` it produced went out with no `ms` at all -- a field the real
+# esps_morse firmware has always included. Anything that draws the signal
+# from events (the app's Morse wave, and the cadence under it) therefore had
+# nothing but zero-length pulses to draw. Caught by watching the app's own
+# WebSocket during a replay, not by a test, which is why these exist now.
+
+def events_of(out):
+    """Just the EVENTs out of a decode_all() result."""
+    return [e for t, e in out if t == msg.TYPE_EVENT]
+
+
+def test_a_symbol_carries_the_duration_that_follows_it():
+    dec = MS.MorseSketchDecoder(node_id=7)
+    dec.feed(b"")
+    out = decode_all(dec.feed(b"TX .\n# TX pulso_ms=62\nTX -\n# TX pulso_ms=431\n"))
+    syms = [e for e in events_of(out) if e.code == M.EV_SYMBOL]
+    assert [(e.data["symbol"], e.data["ms"]) for e in syms] == [(".", 62), ("-", 431)]
+
+
+def test_a_symbol_is_held_only_until_the_very_next_line():
+    # A letter line landing first means the duration line never came. The
+    # symbol still has to be reported, and must NOT wait around to absorb
+    # some later pulse's number.
+    dec = MS.MorseSketchDecoder(node_id=7)
+    dec.feed(b"")
+    out = decode_all(dec.feed(b"RX .\nRX [letra: E] [bin: 01000101]\n# RX pulso_ms=999\n"))
+    evs = events_of(out)
+    assert [e.code for e in evs] == [M.EV_SYMBOL, M.EV_LETTER]
+    assert "ms" not in evs[0].data, "a missing measurement must stay missing, not become 999"
+
+
+def test_two_symbols_in_a_row_both_survive():
+    dec = MS.MorseSketchDecoder(node_id=7)
+    dec.feed(b"")
+    syms = [e for e in events_of(decode_all(dec.feed(b"RX .\nRX -\n# RX pulso_ms=300\n")))
+            if e.code == M.EV_SYMBOL]
+    assert [e.data["symbol"] for e in syms] == [".", "-"]
+    # only the second one was still being held when the duration arrived
+    assert "ms" not in syms[0].data
+    assert syms[1].data["ms"] == 300
+
+
+def test_the_two_directions_do_not_steal_each_others_duration():
+    # On a duplex board the two directions interleave freely, so what is held
+    # is held PER DIRECTION: an RX line in the middle must not make a TX
+    # symbol give up, and it must certainly not hand it RX's number.
+    dec = MS.MorseSketchDecoder(node_id=7)
+    dec.feed(b"")
+    out = decode_all(dec.feed(b"TX .\nRX -\n# RX pulso_ms=300\n# TX pulso_ms=90\n"))
+    syms = {e.data["dir"]: e for e in events_of(out) if e.code == M.EV_SYMBOL}
+    assert syms["RX"].data["ms"] == 300
+    assert syms["TX"].data["ms"] == 90
+
+
+def test_a_filtered_pulse_does_not_hand_its_length_to_a_held_symbol():
+    dec = MS.MorseSketchDecoder(node_id=7)
+    dec.feed(b"")
+    evs = events_of(decode_all(dec.feed(b"RX .\n# RX pulso_ms=3 filtrado\n")))
+    assert [e.code for e in evs] == [M.EV_SYMBOL, M.EV_FILTERED]
+    assert "ms" not in evs[0].data
+
+
+def test_the_last_symbol_of_a_capture_is_not_lost_on_flush():
+    # A replay ends on exactly this shape: the symbol line arrives and the
+    # stream stops before its duration line.
+    dec = MS.MorseSketchDecoder(node_id=7)
+    dec.feed(b"")
+    assert decode_all(dec.feed(b"RX .\n")) == [], "the symbol is held, not emitted yet"
+    evs = events_of(decode_all(dec.flush()))
+    assert [e.code for e in evs] == [M.EV_SYMBOL]
+    assert evs[0].data["symbol"] == "."
+
+
+@pytest.mark.parametrize("log", ["tanda_k40_l600_A.log", "tanda_k40_l600_B.log"])
+def test_a_real_session_gives_nearly_every_symbol_a_duration(log):
+    """The regression in its natural habitat: recorded bench evidence, whole."""
+    path = EVIDENCIA / log
+    if not path.is_file():
+        pytest.skip(f"missing evidence {log}")
+    wire = b""
+    for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = raw[10:] if len(raw) > 10 else raw   # strip the capture's host stamp
+        if line.startswith("#MARK") or line.startswith(">>>"):
+            continue
+        wire += line.encode("latin1", "replace") + b"\n"
+
+    dec = MS.MorseSketchDecoder(node_id=9, label=log)
+    out = decode_all(dec.feed(wire)) + decode_all(dec.flush())
+    syms = [e for e in events_of(out) if e.code == M.EV_SYMBOL]
+    with_ms = [e for e in syms if e.data.get("ms", 0) > 0]
+    assert len(syms) > 50, f"only {len(syms)} symbols in {log}"
+    # Not "all": this is a real capture, and the adapter reports a symbol
+    # whose duration line is missing rather than dropping it.
+    assert len(with_ms) / len(syms) > 0.95, f"{len(with_ms)}/{len(syms)} carried a duration"

@@ -345,13 +345,17 @@ Decisión de diseño y sus consecuencias: [`docs/DECISIONS.md`](docs/DECISIONS.m
 - [x] Sección **Sketches**: los tres `.ino` empaquetados en el bundle, con
       copiar y «guardar carpeta de sketch», y el requisito de librerías
       contrastado contra los `#include` (no hace falta ninguna).
+- [x] Cadena verificada en vivo por el MISMO WebSocket que escucha la app,
+      reproduciendo la evidencia grabada: 40/40 `morse.symbol` con duración
+      (62, 213, 174 … 709, 645 ms) y las 17 letras del log. Antes salían 0/40:
+      el adaptador del sketch no ponía `ms` en el evento (arreglado).
 - [ ] **Sin verificar en hardware**: la onda no se ha visto todavía con las dos
       placas tecleando. Lo que hay son 54 pruebas y una compilación limpia.
 
 Salidas reales:
 
 ```
-gateway:  335 passed                      (eran 285; +50)
+gateway:  343 passed                      (eran 285; +58)
 desktop:  13 files, 139 tests passed      (eran 64; +75, de ellos 73 de Morse
           y de los sketches); typecheck y build limpios
 bench:    enlace-digital 91 comprobaciones · clave-morse TODO OK ·

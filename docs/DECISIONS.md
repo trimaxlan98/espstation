@@ -415,3 +415,18 @@ in — and the earlier rule, which looked at the raw count, refused the
 cross-check on a bench that had exactly one pair keying. Offline stations are
 still drawn, in their own right and below the live ones, because their last
 reported counters are the record of a finished session.
+One defect only the live check found: the sketch **adapter** emitted
+`morse.symbol` with no `ms` at all. The sketch prints a symbol and its length
+on two consecutive lines, symbol first, so the duration is not known when the
+symbol line is read, and the adapter simply dropped it — while the real
+`esps_morse` firmware has always included it. Every board on the adapter path,
+and every replay of recorded evidence, therefore fed the wave nothing but
+zero-length pulses. `MorseSketchDecoder` now holds a symbol, per direction,
+until the very next line of that direction: the duration line completes it,
+anything else releases it **without** `ms` rather than dropping it or letting
+it inherit a later pulse's number, and `flush()` releases whatever a capture
+ended on. Per direction because the two interleave freely on a duplex board.
+This is exactly the sketch/C11/Python drift the golden vectors exist to catch
+and did not — the vectors compare decoding, not the shape of the event the
+station receives — and it was found by watching the app's own WebSocket during
+a replay, which is now `test_a_real_session_gives_nearly_every_symbol_a_duration`.

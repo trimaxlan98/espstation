@@ -110,6 +110,19 @@ class MorseSketchDecoder:
         # channels only exist when verbose is on, so the adapter has to
         # know; None means it has not said yet.
         self.verbose: int | None = None
+        # A symbol and its duration arrive on two CONSECUTIVE lines, symbol
+        # first:
+        #     TX .
+        #     # TX pulso_ms=62
+        # so the symbol event cannot be built the moment the symbol line is
+        # read. It is held here, per direction, until the duration lands.
+        # Without this the event went out with no `ms` at all, and anything
+        # that draws the signal from events -- the app's Morse wave and its
+        # cadence -- had nothing but zero-length pulses to draw. The real
+        # esps_morse firmware has always put `ms` in this event; the adapter
+        # was the odd one out, which is exactly the drift the two
+        # implementations are supposed to be kept free of.
+        self._pending_symbol: dict[str, str] = {}
 
     # -- clock ---------------------------------------------------------
     def _now_ms(self) -> int:
@@ -169,6 +182,23 @@ class MorseSketchDecoder:
             out.append(("frame", self._frame(msg.TYPE_HELLO, payload)))
         return out
 
+    def _release_symbol(self, d: str, ms: int | None = None) -> list[tuple[str, object]]:
+        """Emits the symbol event being held for `d`, if there is one.
+
+        `ms` omitted means the duration line never arrived, so the event goes
+        out without it rather than being dropped -- a symbol the board really
+        decided must reach the station even when its measurement did not. A
+        consumer can tell the two cases apart, which it could not if a zero
+        were invented here.
+        """
+        value = self._pending_symbol.pop(d, None)
+        if value is None:
+            return []
+        data: dict = {"dir": d, "symbol": value}
+        if ms is not None:
+            data["ms"] = ms
+        return [self._event(M.EV_SYMBOL, "debug", data)]
+
     def _event(self, code: str, severity: str, data: dict) -> tuple[str, object]:
         ev = msg.Event(ts_ms=self._now_ms(), code=code, severity=severity, data=data)
         return ("frame", self._frame(msg.TYPE_EVENT, ev.to_payload()))
@@ -210,10 +240,16 @@ class MorseSketchDecoder:
         return out
 
     def flush(self) -> list[tuple[str, object]]:
-        if not self._buf:
-            return []
-        raw, self._buf = self._buf, b""
-        return self._line(raw)
+        out: list[tuple[str, object]] = []
+        if self._buf:
+            raw, self._buf = self._buf, b""
+            out += self._line(raw)
+        # The stream is over; a symbol still waiting for its duration line is
+        # never going to get one, and the last symbol of a capture is exactly
+        # the one a replay ends on.
+        for d in list(self._pending_symbol):
+            out += self._release_symbol(d)
+        return out
 
     # -- one line ------------------------------------------------------
     def _line(self, raw: bytes) -> list[tuple[str, object]]:
@@ -249,9 +285,19 @@ class MorseSketchDecoder:
         out: list[tuple[str, object]] = []
         d = line.sentido or "?"
 
+        # A held symbol waits only for its OWN direction's next line. Held
+        # per direction because the two interleave freely on a duplex board
+        # -- an RX line between a TX symbol and its TX duration is ordinary,
+        # and must not make the TX symbol give up, let alone hand it RX's
+        # number. Anything else on the same direction releases it now with no
+        # duration, so a symbol is never lost and never inherits a later
+        # pulse's length. `pulse` is exempt: it is the line being waited for,
+        # and it releases the symbol itself.
+        if line.kind != "pulse":
+            out += self._release_symbol(d)
+
         if line.kind == "symbol":
-            out.append(self._event(M.EV_SYMBOL, "debug",
-                                   {"dir": d, "symbol": line.value}))
+            self._pending_symbol[d] = line.value
         elif line.kind == "letter":
             out.append(self._event(M.EV_LETTER, "info",
                                    {"dir": d, "letter": line.value, "byte": line.byte}))
@@ -262,12 +308,19 @@ class MorseSketchDecoder:
             out.append(self._event(M.EV_WORD, "debug", {"dir": d}))
         elif line.kind == "pulse":
             if line.filtered:
+                # A filtered pulse never produced a symbol line, so there is
+                # nothing held for it -- but if something IS held, this line
+                # is not its duration and holding it longer would attach the
+                # wrong number to it.
+                out += self._release_symbol(d)
                 out.append(self._event(M.EV_FILTERED, "warning",
                                        {"dir": d, "ms": line.ms}))
-            elif d == "RX":
-                # The pulse is over, so the incoming line was 1 for ms and is
-                # 0 now: both samples are known and both are published.
-                out.append(self._telemetry([(24, line.ms), (23, 0)]))
+            else:
+                out += self._release_symbol(d, line.ms)
+                if d == "RX":
+                    # The pulse is over, so the incoming line was 1 for ms and
+                    # is 0 now: both samples are known and both are published.
+                    out.append(self._telemetry([(24, line.ms), (23, 0)]))
         elif line.kind == "gap":
             if d == "RX":
                 out.append(self._telemetry([(25, line.ms), (23, 1)]))
