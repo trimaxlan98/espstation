@@ -37,6 +37,17 @@
 #define ESPS_DIO_ENABLED 0
 #endif
 
+/* The Morse transceiver is symmetric: both boards run the same binary, so
+ * this is an on/off and not a role. Set by the platformio environment
+ * esp32dev_morse. With it unset this file does not reference esps_morse at
+ * all and the firmware is the base one. */
+#if defined(ESPS_MORSE_BUILD) && (ESPS_MORSE_BUILD != 0)
+#define ESPS_MORSE_ENABLED 1
+#include "esps_morse.h"
+#else
+#define ESPS_MORSE_ENABLED 0
+#endif
+
 #include "cJSON.h"
 
 #include "esp_chip_info.h"
@@ -248,12 +259,18 @@ static size_t ndb_entry_json_bytes(const ndb_entry_t *e) {
  * half of them. */
 #define ESPS_SYS_NDB_COUNT (sizeof(g_sys_ndb) / sizeof(g_sys_ndb[0]))
 #if ESPS_DIO_ENABLED
-_Static_assert(ESPS_SYS_NDB_COUNT + ESPS_DIO_NDB_COUNT <= ESPS_NDB_MAX,
-               "ESPS_NDB_MAX is too small for the system channels plus the digital "
-               "link's — raise it, do not let collect_ndb() truncate");
+#define ESPS_DIO_NDB_N ESPS_DIO_NDB_COUNT
 #else
-_Static_assert(ESPS_SYS_NDB_COUNT <= ESPS_NDB_MAX, "ESPS_NDB_MAX is too small");
+#define ESPS_DIO_NDB_N 0u
 #endif
+#if ESPS_MORSE_ENABLED
+#define ESPS_MORSE_NDB_N ESPS_MORSE_NDB_COUNT
+#else
+#define ESPS_MORSE_NDB_N 0u
+#endif
+_Static_assert(ESPS_SYS_NDB_COUNT + ESPS_DIO_NDB_N + ESPS_MORSE_NDB_N <= ESPS_NDB_MAX,
+               "ESPS_NDB_MAX is too small for the system channels plus the bench "
+               "link's — raise it, do not let collect_ndb() truncate");
 
 /* Fills `out` with every channel this node declares, system first. Returns how
  * many were written.
@@ -288,6 +305,24 @@ static size_t collect_ndb(ndb_entry_t *out, size_t cap) {
         out[n].type = dio[i].type;
         out[n].rate_hz = dio[i].rate_hz;
         out[n].group = dio[i].group;
+        n++;
+    }
+#endif
+#if ESPS_MORSE_ENABLED
+    size_t morse_count = 0;
+    const esps_morse_ndb_entry_t *morse = esps_morse_ndb(&morse_count);
+    for (size_t i = 0; i < morse_count; i++) {
+        if (n >= cap) {
+            dropped++;
+            continue;
+        }
+        out[n].id = morse[i].id;
+        out[n].key = morse[i].key;
+        out[n].name = morse[i].name;
+        out[n].unit = morse[i].unit;
+        out[n].type = morse[i].type;
+        out[n].rate_hz = morse[i].rate_hz;
+        out[n].group = morse[i].group;
         n++;
     }
 #endif
@@ -584,7 +619,18 @@ static void heartbeat_task(void *arg) {
  * silently dropping channels the moment the last one no longer fit, because
  * esps_telemetry_builder_add() reports a full buffer by returning false and
  * the old code ignored it. */
-#define ESPS_TELEM_SAMPLES_MAX 8u
+/* Derived, not a constant, so adding a bench variant cannot quietly start
+ * dropping channels again. The base firmware samples two system channels
+ * (heap_free and uptime; sys.rssi is declared but has no radio to read yet),
+ * and each variant samples at most one per NDB channel it declares.
+ *
+ * This was a fixed 8 and the Morse variant's eight channels overflowed it on
+ * the first boot: `2 telemetry sample(s) did not fit in 70 B`. The builder
+ * reports a full buffer honestly, so nothing was silently lost -- but two
+ * channels were missing from every batch, which on a chart looks exactly
+ * like a node that is not sampling them. */
+#define ESPS_TELEM_SYS_SAMPLES 2u
+#define ESPS_TELEM_SAMPLES_MAX (ESPS_TELEM_SYS_SAMPLES + ESPS_DIO_NDB_N + ESPS_MORSE_NDB_N)
 #define ESPS_TELEM_PAYLOAD_CAP                                                               \
     (ESPS_TELEMETRY_HEADER_SIZE +                                                            \
      ESPS_TELEM_SAMPLES_MAX * (ESPS_TELEMETRY_SAMPLE_HEADER_SIZE + 1u + 4u))
@@ -636,6 +682,26 @@ static void telemetry_task(void *arg) {
         rejected += !esps_telemetry_builder_add(&b, ESPS_DIO_CH_FRAMES_ERR, 0, ESPS_ENC_U32,
                                                 &dio.frames_err);
         rejected += !esps_telemetry_builder_add(&b, ESPS_DIO_CH_BER, 0, ESPS_ENC_F32, &dio.ber);
+#endif
+#if ESPS_MORSE_ENABLED
+        esps_morse_sample_t morse;
+        esps_morse_get_sample(&morse);
+        rejected += !esps_telemetry_builder_add(&b, ESPS_MORSE_CH_TX, 0, ESPS_ENC_U8,
+                                                &morse.tx_level);
+        rejected += !esps_telemetry_builder_add(&b, ESPS_MORSE_CH_RX, 0, ESPS_ENC_U8,
+                                                &morse.rx_level);
+        rejected += !esps_telemetry_builder_add(&b, ESPS_MORSE_CH_PULSE_MS, 0, ESPS_ENC_U32,
+                                                &morse.pulse_ms);
+        rejected += !esps_telemetry_builder_add(&b, ESPS_MORSE_CH_GAP_MS, 0, ESPS_ENC_U32,
+                                                &morse.gap_ms);
+        rejected += !esps_telemetry_builder_add(&b, ESPS_MORSE_CH_SYMBOLS, 0, ESPS_ENC_U32,
+                                                &morse.symbols);
+        rejected += !esps_telemetry_builder_add(&b, ESPS_MORSE_CH_LETTERS, 0, ESPS_ENC_U32,
+                                                &morse.letters);
+        rejected += !esps_telemetry_builder_add(&b, ESPS_MORSE_CH_UNKNOWN, 0, ESPS_ENC_U32,
+                                                &morse.unknown);
+        rejected += !esps_telemetry_builder_add(&b, ESPS_MORSE_CH_BOUNCES, 0, ESPS_ENC_U32,
+                                                &morse.bounces);
 #endif
 
         if (rejected > 0 && !overflow_logged) {
@@ -706,6 +772,68 @@ static void dio_event_sink(const esps_dio_event_t *ev, void *ctx) {
     cJSON_Delete(root);
 }
 #endif /* ESPS_DIO_ENABLED */
+
+#if ESPS_MORSE_ENABLED
+static const char *morse_severity_str(esps_morse_severity_t sev) {
+    switch (sev) {
+        case ESPS_MORSE_SEV_DEBUG:
+            return "debug";
+        case ESPS_MORSE_SEV_WARNING:
+            return "warning";
+        case ESPS_MORSE_SEV_ERROR:
+            return "error";
+        case ESPS_MORSE_SEV_INFO:
+        default:
+            return "info";
+    }
+}
+
+/* The Morse transceiver hands over a code, a severity, a direction and at
+ * most one character; the JSON shape of PROTOCOL.md S4.6 is assembled here.
+ * The `dir` field is what makes a duplex event readable: the same code means
+ * different things depending on whose hand produced it.
+ *
+ * The field names match what the gateway's adapter emits for the Arduino
+ * sketch (transports/morse_sketch.py), so the desktop's Morse section reads
+ * a real node and an adapted one with the same code.
+ *
+ * Runs on the Morse task, never in an ISR — cJSON allocates. */
+static void morse_event_sink(const esps_morse_station_event_t *ev, void *ctx) {
+    (void)ctx;
+    cJSON *root = cJSON_CreateObject();
+    if (!root) {
+        return;
+    }
+    cJSON_AddNumberToObject(root, "ts_ms", esps_time_now_ms());
+    cJSON_AddStringToObject(root, "code", ev->code);
+    cJSON_AddStringToObject(root, "severity", morse_severity_str(ev->severity));
+
+    cJSON *data = cJSON_CreateObject();
+    cJSON_AddStringToObject(data, "dir", ev->dir);
+    if (ev->symbol != '\0') {
+        const char sym[2] = {ev->symbol, '\0'};
+        cJSON_AddStringToObject(data, "symbol", sym);
+    }
+    if (ev->letter != '\0') {
+        const char let[2] = {ev->letter, '\0'};
+        cJSON_AddStringToObject(data, "letter", let);
+        cJSON_AddNumberToObject(data, "byte", (unsigned char)ev->letter);
+    }
+    if (ev->text != NULL) {
+        cJSON_AddStringToObject(data, "code", ev->text);
+    }
+    if (ev->ms > 0) {
+        cJSON_AddNumberToObject(data, "ms", ev->ms);
+    }
+    if (ev->suppressed > 0) {
+        cJSON_AddNumberToObject(data, "suppressed", ev->suppressed);
+    }
+    cJSON_AddItemToObject(root, "data", data);
+
+    send_json_frame(ESPS_MSG_EVENT, root);
+    cJSON_Delete(root);
+}
+#endif /* ESPS_MORSE_ENABLED */
 
 /* --- CMD dispatcher ------------------------------------------------------------ */
 
@@ -898,6 +1026,17 @@ void app_main(void) {
     }
 #endif
 
+#if ESPS_MORSE_ENABLED
+    /* Same placement as the digital link, and for the same reason (D-1): two
+     * operators must be able to key Morse at each other with no station
+     * attached at all. Starting this after the link's retry loop would make
+     * the practice depend on a laptop being reachable, which is precisely the
+     * design that invariant forbids. */
+    if (!esps_morse_start()) {
+        ESP_LOGE(TAG, "morse transceiver did not start; the node continues without it");
+    }
+#endif
+
     esps_link_uart_config_t uart_cfg = ESPS_LINK_UART_CONFIG_DEFAULT();
     esps_link_uart_init(&g_link, &uart_cfg);
 
@@ -917,6 +1056,13 @@ void app_main(void) {
      * All this does is give its events somewhere to go, now that there is a
      * somewhere. */
     esps_dio_set_event_sink(dio_event_sink, NULL);
+#endif
+
+#if ESPS_MORSE_ENABLED
+    /* The transceiver has been running since before the transport opened.
+     * All this does is give its events somewhere to go, now that there is a
+     * somewhere. */
+    esps_morse_set_event_sink(morse_event_sink, NULL);
 #endif
 
     xTaskCreate(hello_task, "esps_hello", 4096, NULL, 5, NULL);

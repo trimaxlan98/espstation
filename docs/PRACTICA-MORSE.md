@@ -276,6 +276,7 @@ anchas.
 | `gateway/tests/test_morse_replay_link.py` | reproducción por REST | 3 pruebas |
 | `desktop` | sección Morse | 8 pruebas |
 | `firmware/test/host` | **`esps_morse` en C11**: tabla, decodificador y llave, con `-Werror` + ASan/UBSan | 3 suites |
+| `pio run -e esp32dev_morse` | el firmware completo, con la mitad ESP-IDF | compila y **corre en las dos placas** |
 | Hardware | las dos placas, en la app, con telemetría real | verificado |
 
 Las tres primeras entran en `make check` (objetivo `bench-test`); las de
@@ -335,11 +336,13 @@ cambias una, cambia las otras y el SPEC en el mismo commit.
 
 Dicho explícitamente, porque es tan parte de la guía como lo demás:
 
-- **`esps_morse` no tiene todavía mitad ESP-IDF.** La lógica pura en C11 (tabla,
-  decodificador, antirrebote) **sí existe y pasa en el host**, pero falta lo que
-  `esps_dio.c` es para el enlace digital: configurar los GPIO, la ISR de flanco,
-  la tarea y la publicación de canales. Hasta que exista, las placas del banco
-  siguen con el sketch Arduino y llegan a la estación por el adaptador.
+- **El firmware real no está medido en el banco.** `esps_morse` completo —las dos
+  mitades— corre en las dos placas y publica sus canales, pero **nadie ha repetido
+  con él las tandas que se hicieron con el sketch**. En particular, la afirmación de
+  que los dos extremos coinciden a ±1 ms se midió con el sketch, y con el firmware
+  depende de que la tarea de 1 ms no se retrase; eso no se ha comprobado.
+- **El adaptador sigue siendo necesario** para una placa con el sketch Arduino. Las
+  dos formas conviven a propósito: la práctica se puede dar sin ESP-IDF.
 - **No hay nodo simulado Morse** dentro del simulador del gateway. La demo sin
   hardware existe por reproducción de capturas, que usa el camino real, pero no
   es lo mismo que un par de nodos sintéticos tecleándose entre ellos.

@@ -304,9 +304,9 @@ reconstruction.** The sketch stamps only `# TX flanco` and `# resumen`, so the
 adapter anchors on the last stamp and extrapolates with the station's clock
 between anchors; they are not the board's own millisecond clock and must not
 be read as such. The real-firmware path, where all three limitations
-disappear, is `firmware/components/esps_morse/`: its pure C11 half (table,
-decoder, key debounce) exists and is gated on the host; its ESP-IDF half is
-not written (see D-23).
+disappear, is `firmware/components/esps_morse/`, which is now complete and
+running on both bench boards (see D-23 and D-24). The adapter stays: a board
+with the Arduino sketch is still a legitimate way to run the practice.
 
 ## D-23 — `esps_morse` ships its pure C11 half only, and the host gate is runnable without `make`
 `firmware/components/esps_morse/` is the table, the pulse/silence state machine

@@ -1,19 +1,27 @@
 # esps_morse — the full-duplex Morse link (bench/practicas/morse-duplex/).
 #
-# Everything here is the PURE C11 half: the table, the pulse/silence state
-# machine and the key debounce. It has no ESP-IDF dependency at all, which is
-# why test/host/ compiles these same files verbatim under plain gcc with
-# ASan+UBSan — the decoder is exercised on every change without anyone
-# flashing a board.
+# Two halves, and the split is load-bearing, exactly as in esps_dio.
 #
-# There is deliberately no ESP-IDF half yet. The GPIO configuration, the edge
-# ISR, the phase task and the NDB publishing that esps_dio.c is for do not
-# exist for Morse, so the boards on the bench still run the Arduino sketch and
-# reach the station through the gateway's adapter
-# (gateway/.../transports/morse_sketch.py, see docs/DECISIONS.md D-22).
+# The pure C11 half (table, decode, key) has no ESP-IDF dependency and is
+# compiled verbatim by test/host/ under plain gcc with ASan+UBSan. It is
+# listed first so it stays obvious which files must remain portable: the Morse
+# table, the pulse/silence state machine and the key debounce are all
+# exercised on the host, not on a bench — including the micros() and millis()
+# wraps that no bench session is long enough to reach.
+#
+# The ESP-IDF half (esps_morse.c) owns only what genuinely needs the driver:
+# GPIO configuration, the two edge ISRs and a 1 ms FreeRTOS task.
+#
+# There is no LDFRAGMENTS here, unlike esps_dio: its ISR runs the frame
+# decoder and CRC, so those objects must live in IRAM. These ISRs only read
+# the clock, read a pin and write a ring slot — they call nothing from the
+# pure half — so IRAM_ATTR on the handlers is the whole requirement.
+#
 # TODO(S3): the thresholds belong in the experiment spec delivered by EXP_SET
-# and persisted to NVS, not in build constants — the same note esps_dio
+# and persisted to NVS, not in build-time defaults — the same note esps_dio
 # carries, for the same reason.
 idf_component_register(
     SRCS "src/table.c" "src/decode.c" "src/key.c"
-    INCLUDE_DIRS "include")
+         "src/esps_morse.c"
+    INCLUDE_DIRS "include"
+    PRIV_REQUIRES esps_core driver esp_timer freertos log)

@@ -355,10 +355,10 @@ tumbaba el enlace y el nodo salía `offline` para siempre.
 
 ## NO hecho / NO verificado
 
-- [ ] **La mitad ESP-IDF de `esps_morse`** — GPIO, ISR de flanco, tarea y
-      publicación de canales, lo que `esps_dio.c` es para el enlace digital.
-      La mitad pura en C11 ya está y pasa en el host; sin la otra, estas placas
-      siguen siendo adaptadas y no nodos.
+- [ ] **Las tandas NO se han repetido con el firmware real.** Corre en las dos
+      placas y publica sus canales, pero todas las medidas del informe se
+      tomaron con el sketch Arduino. La coincidencia de ±1 ms entre extremos
+      depende ahora de que la tarea de 1 ms no se retrase, y eso no está medido.
 - [ ] **Nodo simulado Morse** dentro del simulador del gateway. La demo sin
       hardware existe por reproducción de capturas (camino real), pero no hay
       un par de nodos sintéticos tecleándose entre ellos.
