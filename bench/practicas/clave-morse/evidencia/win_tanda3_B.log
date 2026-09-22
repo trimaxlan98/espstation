@@ -1,0 +1,136 @@
+ 1480.665 #MARK INICIO TANDA FINAL - p173 (banda vacia 134-212), d25 en A, w2400
+ 1481.539 >>> p173
+ 1481.551 # umbrales punto_raya_ms=173 letra_ms=700 palabra_ms=2400 debounce_ms=15 verbose=1
+ 1482.650 >>> c
+ 1482.656 # contadores a cero
+ 1483.632 >>> r
+ 1483.641 # umbrales punto_raya_ms=173 letra_ms=700 palabra_ms=2400 debounce_ms=15 verbose=1
+ 1483.654 # contadores flancos_crudos=0 filtrados=0 puntos=0 rayas=0 letras=0 desconocidas=0 desbordes_buffer=0 niveles_repetidos=0
+ 1725.249 # silencio_ms=566076
+ 1725.333 .
+ 1725.334 # pulso_ms=85
+ 1725.709 # silencio_ms=375
+ 1725.797 .
+ 1725.798 # pulso_ms=84
+ 1726.100 # silencio_ms=303
+ 1726.166 .
+ 1726.166 # pulso_ms=63
+ 1726.866 [letra: S] [bin: 01010011]
+ 1727.593 # silencio_ms=1426
+ 1727.892 -
+ 1727.892 # pulso_ms=293
+ 1728.309 # silencio_ms=424
+ 1728.662 -
+ 1728.663 # pulso_ms=351
+ 1729.056 # silencio_ms=392
+ 1729.378 -
+ 1729.378 # pulso_ms=320
+ 1730.077 [letra: O] [bin: 01001111]
+ 1730.079 # silencio_ms=704
+ 1730.117 .
+ 1730.118 # pulso_ms=38
+ 1730.481 # silencio_ms=360
+ 1730.525 .
+ 1730.526 # pulso_ms=47
+ 1730.799 # silencio_ms=269
+ 1730.850 .
+ 1730.850 # pulso_ms=52
+ 1731.553 [letra: S] [bin: 01010011]
+ 1733.251 [palabra]
+ 1734.117 # silencio_ms=3264
+ 1734.220 .
+ 1734.220 # pulso_ms=102
+ 1734.484 # silencio_ms=263
+ 1734.543 .
+ 1734.544 # pulso_ms=59
+ 1734.828 # silencio_ms=284
+ 1734.910 .
+ 1734.911 # pulso_ms=83
+ 1735.612 [letra: S] [bin: 01010011]
+ 1736.409 # silencio_ms=1497
+ 1736.545 .
+ 1736.545 # pulso_ms=135
+ 1737.239 # silencio_ms=693
+ 1737.570 -
+ 1737.571 # pulso_ms=330
+ 1737.910 # silencio_ms=336
+ 1738.223 -
+ 1738.224 # pulso_ms=315
+ 1738.537 # silencio_ms=313
+ 1738.837 -
+ 1738.838 # pulso_ms=299
+ 1739.537 [letra: J] [bin: 01001010]
+ 1740.233 # silencio_ms=1395
+ 1740.280 .
+ 1740.280 # pulso_ms=49
+ 1740.526 # silencio_ms=243
+ 1740.600 .
+ 1740.601 # pulso_ms=73
+ 1740.850 # silencio_ms=250
+ 1740.915 .
+ 1740.915 # pulso_ms=62
+ 1741.615 [letra: S] [bin: 01010011]
+ 1743.313 [palabra]
+ 1743.965 # silencio_ms=3049
+ 1744.088 .
+ 1744.088 # pulso_ms=122
+ 1744.307 # silencio_ms=219
+ 1744.359 .
+ 1744.359 # pulso_ms=53
+ 1744.752 # silencio_ms=389
+ 1744.828 .
+ 1744.829 # pulso_ms=75
+ 1745.528 [letra: S] [bin: 01010011]
+ 1746.260 # silencio_ms=1434
+ 1746.624 -
+ 1746.624 # pulso_ms=361
+ 1746.899 # silencio_ms=275
+ 1747.285 -
+ 1747.286 # pulso_ms=384
+ 1747.671 # silencio_ms=384
+ 1748.070 -
+ 1748.072 # pulso_ms=399
+ 1748.771 [letra: O] [bin: 01001111]
+ 1749.335 # silencio_ms=1266
+ 1749.420 .
+ 1749.421 # pulso_ms=81
+ 1749.668 # silencio_ms=247
+ 1749.746 .
+ 1749.748 # pulso_ms=78
+ 1750.031 # silencio_ms=283
+ 1750.100 .
+ 1750.100 # pulso_ms=69
+ 1750.801 [letra: S] [bin: 01010011]
+ 1752.499 [palabra]
+ 1753.351 # silencio_ms=3250
+ 1753.471 .
+ 1753.472 # pulso_ms=120
+ 1753.726 # silencio_ms=254
+ 1753.835 .
+ 1753.835 # pulso_ms=107
+ 1754.075 # silencio_ms=239
+ 1754.175 .
+ 1754.176 # pulso_ms=100
+ 1754.877 [letra: S] [bin: 01010011]
+ 1755.461 # silencio_ms=1284
+ 1755.727 -
+ 1755.728 # pulso_ms=266
+ 1756.103 # silencio_ms=375
+ 1756.415 -
+ 1756.416 # pulso_ms=311
+ 1756.859 # silencio_ms=443
+ 1757.166 -
+ 1757.167 # pulso_ms=305
+ 1757.868 [letra: O] [bin: 01001111]
+ 1758.458 # silencio_ms=1291
+ 1758.568 .
+ 1758.568 # pulso_ms=111
+ 1758.784 # silencio_ms=214
+ 1758.897 .
+ 1758.898 # pulso_ms=112
+ 1759.128 # silencio_ms=231
+ 1759.223 .
+ 1759.224 # pulso_ms=94
+ 1759.927 [letra: S] [bin: 01010011]
+ 1761.625 [palabra]
+ 1791.359 #MARK FIN TANDA FINAL - operador declara >27 toques, un SOS salio SJS

@@ -407,6 +407,38 @@ Cada línea lleva primero los segundos desde que arrancó el capturador (marca d
 - **No medido:** latencia de la ISR, tensiones y corrientes reales, longitud del cable, caso sin GND común, cualquier cosa que requiera instrumento.
 - Antes de la tanda 1 hubo un ensayo informal con la llave (`crudos=135 aceptados=39` en A); se puso a cero y **no cuenta**.
 
+### 8.7 Segunda sesión: réplica en Windows con otro operador (2026-09-21)
+
+Réplica independiente en **Windows 11**, con **otro operador** y **las mismas dos placas**, usando el mismo `arduino-cli` 1.5.1 y el mismo core `esp32:esp32` 3.3.11 que el banco de Linux. Puertos `COM5` (A) y `COM7` (B). Evidencia: `sesion_win_{A,B}.log` y `win_tanda{1,2,3}_{A,B}.log`.
+
+| Tanda | `p`/`l`/`w` en B; `d` en A | `SOS` | Correctos | Salida |
+|---|---|---|---|---|
+| 1 calibración | 300 / 700 / 1800; 15 | 3 | **1** | `S E I` · `S E O S` · `S O S` |
+| 2 evaluación | 300 / 700 / **2400**; **25** | 6 grupos | **6** `S O S` | 1 con `[palabra]` limpio |
+| 3 final | **173** / 700 / 2400; 25 | 4 | **3** | `S O S` · `S J S` · `S O S` · `S O S` |
+
+**Tanda 3: cada pulso justificado.** El operador declaró un error (`SJS` en vez de `SOS`). Lo esperado a partir de las letras decodificadas —3 × `SOS` = 18 puntos y 9 rayas, más `SJS` con `J` = `.---` = 7 puntos y 3 rayas— da **25 puntos y 12 rayas**, y los contadores de B dicen **exactamente `puntos=25 rayas=12`**. No sobra ni falta un pulso.
+
+**Prueba de rebote completa**, lo que quedó *indeterminable* en las tandas 1 y 4 de la primera sesión: 37 toques → 74 flancos esperados; **A aceptó 74 y B contó 74**, con `filtrados=0`, `desbordes_buffer=0`, `niveles_repetidos=0`. El antirrebote redujo **210 cambios crudos del pin a 74 flancos exactos**. Con `d=15` se coló un rebote de **23 ms** (tanda 1 de esta sesión, `# silencio_ms=23` entre dos pulsos de 75 y 197 ms); con `d=25` **no hay ningún hueco por debajo de 60 ms**. Es el mismo hallazgo de §8.3, reproducido en otra máquina y con otro operador (allí el hueco fue de 19 ms).
+
+**`punto_raya_ms = 173` sale de una banda vacía medida.** En la tanda 3 los 25 puntos caen en **38–135 ms** y las 12 rayas en **266–399 ms**: entre 135 y 266 no hay **ni un solo pulso**. Con `p=300` el umbral caía *dentro* de las rayas de este operador — 8 intentos de raya se quedaron en 212–292 ms y se decodificaron como puntos, y otros 10 entraron entre 300 y 359 ms —, y el operador lo describió como «cuesta más crear la raya» **antes** de ver ningún número.
+
+> **Hallazgo que corrige a §8.2.** El operador de Linux calibró a **170** y el de Windows a **173**, de forma independiente. §8.2 atribuía ese valor al operador; que dos personas distintas, en dos máquinas distintas, converjan en el mismo umbral apunta más bien a una propiedad **de la llave de puntas de jumper**. **No está comprobado:** haría falta una tercera llave, o la misma llave con un tercer operador.
+
+**Limitaciones de esta sesión (no se solapan con las de §8.6):**
+- **Una sola tanda por configuración.** El 3 de 4 **no se repitió con los umbrales congelados**, que es justo lo que tumbó el 2 de 3 de la tanda 3 de Linux. No es una tasa de acierto.
+- **`p=173` se calibró y se evaluó sobre la misma tanda**: el umbral se deriva de los mismos pulsos con los que luego se le juzga. Falta una tanda independiente.
+- **En las tandas 1 y 2 no se contaron los toques**, así que la prueba de rebote solo se cierra en la 3.
+- **La basura de captura de §8.6 no se reprodujo** en ninguna de las tres tandas. Antes de empezar se desactivó la **suspensión selectiva de USB** de Windows (plan de energía, registro del dispositivo y `MSPower_DeviceEnable`), que estaba activa con 10 s de espera. **No se probó a dejarla activada**, así que esto **no demuestra** que fuera la causa; solo añade un candidato comprobable a la lista de §8.6.
+- **La placa B no entra sola en modo descarga** (0 de 8 intentos, siempre `boot mode 0x13`; la A, 8 de 8). En B la línea **DTR→GPIO0 no actúa**: EN sí resetea, pero GPIO0 nunca baja. Hay que mantener **BOOT** pulsado durante todo el `upload` (3 de 3 así). Es un defecto de esa placa concreta —son clones de fabricantes distintos, y solo la A tiene número de serie USB—, no de Windows ni del driver. **No afecta a la práctica**: B ejecuta y comunica con normalidad.
+
+**Herramientas.** Los tests (`run_tests.py`, `replay_evidencia.py`, `test_puente.py`) **pasan enteros y sin modificar** en cuanto hay un `g++` en el `PATH` (aquí, LLVM-MinGW: el clang que apunta a MSVC no sirve sin las cabeceras de Visual Studio). Las dos herramientas de captura sí necesitaron cambios, hechos a raíz de esta sesión y ya integrados:
+
+- **`captura_serie.py` es ahora multiplataforma.** Usaba `os.mkfifo`, que no existe fuera de POSIX. El canal de comandos se abstrajo en dos clases: `CanalFifo` (POSIX, la FIFO de siempre) y `CanalFichero` (Windows, un fichero normal al que se apendean líneas y del que se lee solo lo nuevo). **El log es byte a byte el mismo en los dos**, así que la evidencia es comparable entre sesiones.
+- **`puente_serie.py` sabe escribir el log** (`--log-a`, `--log-b`, `--marcas`). Hacía falta porque un puerto serie solo lo abre **un** proceso: sin esto, ver el visor en vivo y capturar la evidencia son excluyentes. Las líneas se registran **antes** de la guardia de tasa —la guardia protege al navegador, pero la evidencia tiene que ser completa— y las marcas del fichero vigilado entran en **los dos** logs. La evidencia de esta sesión se tomó así.
+
+**Sin probar:** la rama POSIX de `captura_serie.py` (`CanalFifo`) **no se ha ejecutado en Linux** tras el cambio; es un refactor que conserva la semántica del código original, pero solo se ha probado la rama de Windows contra hardware.
+
 ---
 
 ## 9. Solución de problemas
@@ -426,6 +458,10 @@ Cada línea lleva primero los segundos desde que arrancó el capturador (marca d
 | La pestaña «En vivo» dice «puente: sin conexión» | El puente no está en marcha, o es otra dirección | Arranca `python3 herramientas/puente_serie.py --a … --b …` y abre `http://127.0.0.1:8765/#vivo` |
 | El puente dice «sin conexión (PermissionError…)» | Sin permiso sobre el puerto | Grupo `dialout` en la sesión actual (sec. 6.1) |
 | Los puertos están ocupados | Otro programa (monitor serie, capturador) los tiene abiertos | Ciérralo: solo un programa puede abrir cada puerto |
+| **Windows:** no aparece ningún COM, y en el Administrador de dispositivos las placas dan **error 28** | El driver **CP210x no está instalado** (Windows no lo trae) | Instala el `CP210x_Universal_Windows_Driver` de Silicon Labs (`pnputil /add-driver silabser.inf /install`, elevado) |
+| `upload` falla siempre con **`Wrong boot mode detected (0x13)`** en una placa concreta | Esa placa no entra sola en modo descarga: su línea **DTR→GPIO0** no actúa (sec. 8.7) | Mantén **BOOT** pulsado durante **todo** el upload. Suéltalo después: si se queda pulsado, la placa arranca en `waiting for download` y parece muerta |
+| **Windows:** quiero el visor y la evidencia a la vez, y el puerto da «ocupado» | Un COM solo lo abre **un** proceso | Usa el puente con log: `--log-a … --log-b … --marcas …` (sec. 8.7), en vez de lanzar también `captura_serie.py` |
+| **Windows:** `run_tests.py` dice que no encuentra `g++` | No hay toolchain de C++ en el `PATH` | Instala LLVM-MinGW. El clang que apunta a MSVC **no** sirve sin las cabeceras de Visual Studio |
 
 ---
 
