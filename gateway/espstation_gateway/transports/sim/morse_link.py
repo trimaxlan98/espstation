@@ -114,6 +114,42 @@ class MorseEvent:
     byte: int | None = None   # ASCII byte of a decoded letter, None otherwise
 
 
+# -- uint32 clock arithmetic ----------------------------------------------
+# The node's clocks are uint32 and they wrap: micros() every ~71.6 min,
+# millis() every ~49.7 days [D-10]. In C -- both in the sketch and in
+# esps_morse -- unsigned subtraction is DEFINED to wrap, which is what makes
+# `(uint32_t)(now - then) / 1000UL` stay correct across the rollover; decode.c
+# and key.c both say so at the line. Python ints are unbounded, so the mirror
+# has to mask explicitly or it stops being a mirror: `now - then` across the
+# wrap yields a large NEGATIVE number, and then
+#   * a pulse straddling the wrap is below every debounce threshold, so C
+#     reports a symbol and Python reported `filtered`;
+#   * a gap straddling the wrap never reaches letter_ms, so C closes the
+#     letter and Python lost it forever;
+#   * the key's stability window never elapses, so the key jams.
+UINT32 = 0xFFFFFFFF
+
+
+def elapsed_ms(now: int, then: int) -> int:
+    """Whole milliseconds between two uint32 stamps, wrap-safe.
+
+    Mirrors `elapsed_ms()` of firmware/components/esps_morse/src/decode.c and
+    the `(uint32_t)(t_us - d.t_subida_us) / 1000UL` the sketch writes inline.
+    Truncating division on purpose -- do not round it, the +-1 ms agreement
+    the bench measured depends on it.
+    """
+    return ((now - then) & UINT32) // 1000
+
+
+def _tick_stamps(start_us: int, span_us: int, *, inclusive: bool) -> Iterable[int]:
+    """The 1 ms stamps a loop would have ticked at over `span_us`, wrapping
+    like micros() does. Used only by Decoder.feed()."""
+    step = 1000
+    while step < span_us or (inclusive and step <= span_us):
+        yield (start_us + step) & UINT32
+        step += 1000
+
+
 # -- the decoder -----------------------------------------------------------
 @dataclass
 class Decoder:
@@ -163,7 +199,7 @@ class Decoder:
 
         if level:                                   # rising
             if self.have_fall:
-                self.last_gap_ms = (t_us - self.t_fall_us) // 1000
+                self.last_gap_ms = elapsed_ms(t_us, self.t_fall_us)
             self.t_rise_us = t_us
             self.in_pulse = True
             return out
@@ -171,7 +207,7 @@ class Decoder:
         if not self.in_pulse:                       # started with the key closed
             return out
         self.in_pulse = False
-        dur_ms = (t_us - self.t_rise_us) // 1000
+        dur_ms = elapsed_ms(t_us, self.t_rise_us)
         self.last_pulse_ms = dur_ms
 
         if dur_ms < self.th.debounce_ms:            # noise: not a symbol, and it
@@ -199,7 +235,7 @@ class Decoder:
         out: list[MorseEvent] = []
         if not self.measuring or self.level != 0:
             return out
-        gap_ms = (now_us - self.t_fall_us) // 1000
+        gap_ms = elapsed_ms(now_us, self.t_fall_us)
         if self.symbol and gap_ms >= self.th.letter_ms:
             out.append(self._close_letter(gap_ms))
         if self.letter_since_word and gap_ms >= self.th.word_ms:
@@ -232,13 +268,14 @@ class Decoder:
         prev_us: int | None = None
         for level, t_us in edges:
             if prev_us is not None:
-                for t in range(prev_us + 1000, t_us, 1000):
+                span = (t_us - prev_us) & UINT32
+                for t in _tick_stamps(prev_us, span, inclusive=False):
                     out += self.tick(t)
             out += self.tick(t_us)
             out += self.edge(level, t_us)
             prev_us = t_us
         if prev_us is not None and settle_us:
-            for t in range(prev_us + 1000, prev_us + settle_us + 1, 1000):
+            for t in _tick_stamps(prev_us, settle_us, inclusive=True):
                 out += self.tick(t)
         return out
 
@@ -277,7 +314,10 @@ class Key:
             self.t_candidate_ms = now_ms
             self.raw_changes += 1
             return None
-        if self.candidate != self.stable and now_ms - self.t_candidate_ms >= self.debounce_ms:
+        # Wrap-safe, never a comparison of two absolute stamps: the same
+        # note key.c carries at this exact line.
+        if (self.candidate != self.stable
+                and ((now_ms - self.t_candidate_ms) & UINT32) >= self.debounce_ms):
             self.stable = self.candidate
             self.accepted += 1
             return self.stable
@@ -285,7 +325,14 @@ class Key:
 
     @property
     def bounces(self) -> int:
-        """Reading changes that never became edges: the morse.bounces channel."""
+        """Reading changes that never became edges: the morse.bounces channel.
+
+        Clamped at 0 like `esps_morse_key_bounces()`: accepted can never
+        exceed raw_changes, but a half-initialised struct must read 0 rather
+        than a negative count the station would chart.
+        """
+        if self.accepted > self.raw_changes:
+            return 0
         return self.raw_changes - self.accepted
 
 

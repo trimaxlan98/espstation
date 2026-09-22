@@ -14,7 +14,7 @@ flowchart LR
     end
     subgraph STATION["Laptop — the station"]
         GW["espstation-gateway (Python)<br/>transports · ENLP codec · REST + WS"]
-        APP["espstation-desktop (Electron + React)<br/>Nodes · Live · Experiments · Networks · Lab · Flash"]
+        APP["espstation-desktop (Electron + React)<br/>Nodes · Live · Experiments · Networks · Morse · Sketches · Lab · Flash"]
         GW <--> APP
     end
     SIM["Simulated nodes<br/>same codec, no hardware"]
@@ -58,7 +58,7 @@ storage instead of to a screen.
 - **Zero-hardware development.** Simulated nodes speak byte-identical protocol
   through the *same* codec as the serial path, so a twenty-node mesh is
   demoable on a laptop and contract drift is impossible by construction.
-- **One operator app.** Electron + React: Nodes, Live, Experiments, Networks,
+- **One operator app.** Electron + React: Nodes, Live, Experiments, Networks, Morse, Sketches,
   Lab, Flash — light and dark, packaged as an AppImage/`.deb`.
 
 ## Quick start (no hardware needed)
@@ -90,7 +90,7 @@ hit within five minutes: [`docs/SETUP.md`](docs/SETUP.md).
 | `protocol/` | **The contract.** [`PROTOCOL.md`](protocol/PROTOCOL.md) is law |
 | `docs/` | [Architecture](docs/ARCHITECTURE.md) · [Experiments](docs/EXPERIMENTS.md) · [Roadmap](docs/ROADMAP.md) · [Decisions](docs/DECISIONS.md) · [Setup](docs/SETUP.md) · [Morse practice](docs/PRACTICA-MORSE.md) (ES) |
 | `bench/` | Bench practices — Arduino sketches, contracts and recorded evidence |
-| `tools/` | Protocol drift gate, agent-definition sync, serial frame sniffer |
+| `tools/` | Protocol drift gate (`check_protocol.py`), agent-definition sync (`sync_agents.py`) |
 
 ## Contributing — including with AI agents
 

@@ -6,15 +6,19 @@
    que llega por SSE de la placa B es EXACTAMENTE lo que imprimio la placa real (datos.json), y que
    los flancos de A coinciden con los contadores de la placa.
 3. Comandos: la lista blanca y el rechazo en modo demo.
+4. Canal de comandos de herramientas/captura_serie.py, las DOS ramas. La rama
+   POSIX (CanalFifo) solo se ejercita entera donde hay os.mkfifo; en Windows se
+   comprueba al menos que rechaza un fichero que no es una FIFO.
 
 Uso: python3 bench/practicas/clave-morse/tests/test_puente.py
 """
-import http.client, json, re, subprocess, sys, time, urllib.request
+import http.client, json, os, re, subprocess, sys, tempfile, time, urllib.request
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ / "herramientas"))
 import puente_serie as P  # noqa: E402
+import captura_serie as C  # noqa: E402
 
 fallos = pruebas = 0
 def check(nombre, ok, extra=""):
@@ -99,5 +103,90 @@ check("guarda de tasa: tras la rafaga vuelve a admitir cuando la tasa es normal"
 ok = ["r", "c", "v", "p170", "l930", "w3000", "d25"]; mal = ["reset", "p", "p-1", "p1000000", "x", "r;ls", "d 25", "../etc"]
 check("lista blanca acepta los comandos del SPEC", all(P.COMANDO_OK.match(x) for x in ok))
 check("lista blanca rechaza el resto", not any(P.COMANDO_OK.match(x) for x in mal))
+
+# ---- 4. canal de comandos de captura_serie.py
+# Lo que entra por aqui se ESCRIBE EN LA PLACA: un canal que reenvia lo que no
+# debe cambia umbrales sin que nadie lo pida y contamina la tanda entera.
+tmp = Path(tempfile.mkdtemp())
+
+# 4a. CanalFichero (rama Windows)
+ruta = tmp / "cmd.txt"
+ruta.write_bytes(b"p170\nd0\n")                       # sobras de otra sesion
+cf = C.CanalFichero(str(ruta))
+check("CanalFichero trunca al arrancar: no reenvia la sesion anterior", cf.leer() == [])
+ruta.write_bytes(b"r\n#MARK INICIO\r\np170")          # la ultima linea, a medias
+check("CanalFichero entrega solo lineas completas y quita el CR",
+      cf.leer() == [b"r", b"#MARK INICIO"])
+check("CanalFichero espera a un escritor a medias", cf.leer() == [])
+with open(ruta, "ab") as fh:
+    fh.write(b"\n")
+check("CanalFichero entrega la linea en cuanto se cierra", cf.leer() == [b"p170"])
+ruta.write_bytes(b"c\n")                              # alguien lo vacio
+check("CanalFichero detecta el truncado y reempieza", cf.leer() == [b"c"])
+
+# 4b. Guarda de la rama POSIX: un fichero normal NO es un canal. Sin ella
+#     os.open() lo abre igual y la primera lectura le manda a la placa todo lo
+#     que hubiera dentro. Esta comprobacion corre tambien en Windows.
+suelto = tmp / "no_es_fifo"
+suelto.write_bytes(b"p170\n")
+try:
+    C.CanalFifo(str(suelto))
+    aviso = None
+except SystemExit as e:
+    aviso = str(e)
+check("CanalFifo rechaza un fichero normal en vez de reenviar su contenido",
+      aviso is not None and "FIFO" in aviso, repr(aviso))
+
+# 4c. La FIFO de verdad: solo donde existe os.mkfifo.
+if hasattr(os, "mkfifo"):
+    fifo = tmp / "cmd_fifo"
+    cfi = C.CanalFifo(str(fifo))
+    check("CanalFifo sin datos no bloquea ni devuelve nada", cfi.leer() == [])
+    fd = os.open(str(fifo), os.O_WRONLY | os.O_NONBLOCK)
+    os.write(fd, b"r\np1")
+    os.close(fd)
+    check("CanalFifo entrega la linea completa y se guarda el resto", cfi.leer() == [b"r"])
+    fd = os.open(str(fifo), os.O_WRONLY | os.O_NONBLOCK)
+    os.write(fd, b"70\n")
+    os.close(fd)
+    check("CanalFifo recompone una linea partida entre dos lecturas", cfi.leer() == [b"p170"])
+    check("CanalFifo sigue vivo tras cerrarse todos los escritores", cfi.leer() == [])
+    cfi.buf = b"x" * (C.MAX_BUF_CANAL + 1)
+    cfi.leer()
+    check("CanalFifo no acumula sin limite si nadie cierra la linea", cfi.buf == b"")
+else:
+    print("nota:  CanalFifo (rama POSIX) no se puede ejercitar aqui: no hay os.mkfifo")
+
+# 4d. La LOGICA de CanalFifo.leer() (troceo, recomposicion entre dos lecturas,
+#     EAGAIN y tope de buffer) se puede ejercitar en CUALQUIER sistema con un
+#     os.read de mentira. Lo que no se puede probar fuera de POSIX es la FIFO
+#     de verdad; esto cubre al menos el codigo que se refactorizo a ciegas.
+canal = object.__new__(C.CanalFifo)          # sin __init__: no hay FIFO que abrir
+canal.fd, canal.buf = -1, b""
+guion = [b"r\np1", BlockingIOError(), b"70\n#MARK X\n"]
+
+
+def falso_read(fd, n):
+    if not guion:
+        raise BlockingIOError()
+    d = guion.pop(0)
+    if isinstance(d, Exception):
+        raise d
+    return d
+
+
+_read_real, C.os.read = C.os.read, falso_read
+try:
+    check("CanalFifo.leer: entrega la linea completa y guarda el trozo suelto",
+          canal.leer() == [b"r"] and canal.buf == b"p1")
+    check("CanalFifo.leer: sin datos (EAGAIN) no devuelve nada ni pierde el trozo",
+          canal.leer() == [] and canal.buf == b"p1")
+    check("CanalFifo.leer: recompone la linea partida y entrega las dos",
+          canal.leer() == [b"p170", b"#MARK X"])
+    canal.buf = b"x" * (C.MAX_BUF_CANAL + 1)
+    canal.leer()
+    check("CanalFifo.leer: no acumula sin limite si nadie cierra la linea", canal.buf == b"")
+finally:
+    C.os.read = _read_real
 print(f"\n{pruebas} pruebas, {fallos} fallos")
 sys.exit(1 if fallos else 0)

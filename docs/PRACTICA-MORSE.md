@@ -15,6 +15,7 @@ verla dentro de EspStation.
 | Montar el circuito y teclear | [1. El montaje](#1-el-montaje) |
 | Verla en la app, con placas | [3. Monitorizar desde EspStation](#3-monitorizar-desde-espstation) |
 | Verla **sin hardware** | [4. Sin hardware](#4-sin-hardware) |
+| Los `.ino` para el IDE de Arduino | [4bis. Llevarse los sketches](#4bis-llevarse-los-sketches-al-ide-de-arduino) |
 | Entender qué se mide y qué no | [5. Qué se puede medir](#5-qué-se-puede-medir-y-qué-no) |
 | Los números medidos en el banco | [6. Resultados](#6-resultados-medidos) |
 | Qué falta | [8. Lo que no está hecho](#8-lo-que-no-está-hecho) |
@@ -68,8 +69,10 @@ no un aislamiento.
 
 Aquí está la decisión que hay que entender, porque determina todo lo demás.
 
-Las placas de esta práctica **no hablan ENLP**: imprimen texto plano. Había dos
-formas de meterlas en la app y sólo una es correcta:
+Una placa con el **sketch Arduino** de la práctica no habla ENLP: imprime texto
+plano. (Una placa con el firmware `esps_morse` sí lo habla, y entra en la app
+como un nodo normal — ver la nota al final de la sección 3.) Para las del
+sketch había dos formas de meterlas en la app y sólo una es correcta:
 
 | | Qué implicaría |
 |---|---|
@@ -115,9 +118,12 @@ vale `RX` (la mano del otro) o `TX` (el eco de la propia).
 
 ### Implicaciones que hay que tener presentes
 
-1. **No son nodos de EspStation.** El HELLO lo dice: `fw.build` es
-   `arduino-sketch` y `caps` lleva `read_only`. No tienen runtime de
-   experimentos, ni NVS, ni store-and-forward.
+1. **Una placa con el sketch no es un nodo de EspStation.** El HELLO lo dice:
+   `fw.build` es `arduino-sketch` y `caps` lleva `read_only`
+   (`transports/morse_sketch.py:128`). No tiene runtime de experimentos, ni
+   NVS, ni store-and-forward. Las tres implicaciones de abajo son del
+   **adaptador**, no de la práctica: con el firmware `esps_morse` las tres
+   desaparecen.
 2. **La app no puede mandarles comandos.** Un `CMD` o un `EXP_SET` **falla
    ruidosamente** en vez de desaparecer en silencio, para que nadie crea que un
    comando llegó. Poder ajustar `p/l/w/d/k` desde la app exige una op `morse.*`
@@ -153,11 +159,71 @@ cd ../desktop && npm run dev      # sección «Morse» en la barra lateral
 
 En Linux el `path` es `/dev/ttyUSB0`, `/dev/ttyUSB1`.
 
+> **Esto es para placas con el sketch Arduino.** Una placa flasheada con
+> `pio run -e esp32dev_morse` **habla ENLP**: se engancha con
+> `{"kind":"serial","path":"COM5"}` como cualquier otro nodo, sin adaptador, y
+> las tres limitaciones de la sección 2 no la afectan.
+
 La sección **Morse** muestra, por estación: el texto que **está recibiendo**
 (decodificado por el otro extremo, que es lo único que prueba que hubo
-comunicación), las tiras de nivel de su llave y de lo entrante, y los
-contadores. Debajo, el **cruce de integridad**: si los dos sentidos no
-transportaron el mismo número de pulsos, lo dice.
+comunicación), **la señal en el cable** y los contadores. Debajo, el **cruce
+de integridad**: si los dos sentidos no transportaron el mismo número de
+pulsos, lo dice.
+
+### La onda cuadrada
+
+Es el dibujo del visor de `clave-morse` (`senalSVG`), ahora en vivo dentro de
+la app: **1 mientras la llave está cerrada, 0 en reposo**, con dos carriles
+sobre el mismo eje de tiempo — arriba **TX**, tu propia mano tal como te la
+devuelve tu placa; abajo **RX**, lo que llega del otro operador. El borde
+derecho es *ahora* y la onda se desliza por debajo. Cada pulso lleva su color
+y su forma (círculo = punto, barra = raya), su duración en ms, y debajo el
+corchete de la letra que cerró con su código.
+
+> **De dónde salen los datos, y por qué no de `morse.tx`/`morse.rx`.** Esos
+> dos canales llevan el nivel de la línea, que parece justo lo que hace falta
+> y no lo es: `telemetry_task` publica **una muestra por segundo** y un punto
+> dura ~100 ms. El propio comentario de la NDB en el firmware lo deja medido:
+> *un SOS entero pasó sin que `morse.tx` se muestreara alto ni una sola vez*.
+> La onda se reconstruye de los **eventos**: `morse.symbol` se dispara en el
+> flanco que cerró el pulso y trae su duración, así que el pulso ocupó
+> `[ts - ms, ts]`. Eso es exacto al milisegundo que midió la placa.
+>
+> **Lo que no puede enseñar:** un pulso sólo existe cuando **ha terminado**,
+> porque hasta entonces la placa no sabe cuánto duró. Mientras mantienes la
+> llave pulsada no hay nada que dibujar; lo que crece es el silencio, y ese
+> número («your silence») sí está en vivo abajo a la derecha — es con el que
+> se cronometran los huecos de letra y de palabra contra `l` y `w`.
+
+Las tiras de nivel que había antes en su lugar se quitaron por lo mismo: a
+1 Hz no pueden ver un punto, y una tira que casi siempre está vacía se lee
+como «no llega nada».
+
+### La cadencia
+
+Debajo de la onda, por estación: **de dónde a dónde llegan tus puntos, de
+dónde a dónde tus rayas, y cuánto vacío hay en medio**. Se mide del carril
+**TX** — tu propia mano tal como la devolvió tu placa —, nunca del entrante,
+que es la mano del otro. Todo sale de los pulsos que la placa ya reportó: no
+hay que teclear ningún ajuste ni se lee nada del firmware.
+
+| Lo que dice | Qué hacer |
+|---|---|
+| `Separation N ms — comfortable` | Nada. Da además el punto medio de la banda **para esa muestra**; no es un valor para copiar a otra sesión. |
+| `Separation N ms — fragile` (N < 40) | Alarga las rayas. El banco fija 40 ms como mínimo cómodo: por debajo, un pulso cerca de la línea cambia de clase solo. |
+| `Dots and dashes overlap` | Tu punto más largo no es más corto que tu raya más corta: **ningún** `punto_raya_ms` clasifica bien todos. Es mano, no número. |
+| `Your gaps overlap too` | El silencio más largo dentro de una letra llega al más corto entre letras: **ningún** `letra_ms` los separa. |
+
+El `wpm` es la estimación PARIS desde la **mediana del punto** (el punto es la
+unidad, la palabra son 50 unidades → `1200 / punto_ms`). Es una estimación de
+tu ritmo reciente, no una medida del enlace.
+
+> **Por qué no se sugiere un `letra_ms`.** Porque la sesión de banco que lo
+> intentó descubrió que las dos poblaciones de huecos **se solapan**, y cuando
+> eso pasa no hay umbral que valga: sacar un número de un ritmo concreto es
+> justamente cómo se escribe mal un hallazgo. Se ofrece punto medio sólo para
+> `punto_raya_ms`, sólo cuando hay banda vacía de verdad, y siempre dicho
+> como «en estos N símbolos».
 
 ### Cómo leer lo que sale
 
@@ -189,13 +255,15 @@ transportaron el mismo número de pulsos, lo dice.
 ## 4. Sin hardware
 
 Cualquier captura grabada se vuelve a pasar por el **mismo adaptador**, así que
-la app no distingue una reproducción de una placa:
+la app no distingue una reproducción de una placa. El `path` lo abre el proceso
+del gateway, así que una ruta relativa se resuelve desde **su** directorio de
+trabajo, que siguiendo la sección 3 es `gateway/`:
 
 ```bash
 curl -s -X POST http://127.0.0.1:8787/api/links \
   -H "Authorization: Bearer espstation-dev" -H "Content-Type: application/json" \
   -d '{"kind":"morse-replay",
-       "path":"bench/practicas/morse-duplex/evidencia/tanda_k40_l600_A.log",
+       "path":"../bench/practicas/morse-duplex/evidencia/tanda_k40_l600_A.log",
        "speed":4,"label":"replay"}'
 ```
 
@@ -208,6 +276,47 @@ python bench/practicas/clave-morse/herramientas/puente_serie.py --duplex \
     --reproducir-b bench/practicas/morse-duplex/evidencia/tanda_k40_l600_B.log
 # http://127.0.0.1:8765/
 ```
+
+---
+
+## 4bis. Llevarse los sketches al IDE de Arduino
+
+La app trae la sección **Sketches** en la barra lateral. No habla con el
+gateway ni con ninguna placa: es la lista de los `.ino` de las prácticas, con
+**Copy source** y **Save sketch folder…** para cada uno, y sirve estando la app
+recién instalada, sin placas y sin red — que es exactamente la situación de
+quien viene a buscar un sketch.
+
+| Sketch | Va en | Fichero en el repo |
+|---|---|---|
+| Transceptor full duplex | **las dos placas**, binario idéntico | `bench/practicas/morse-duplex/transceptor/transceptor.ino` |
+| Transmisor (placa A) | placa A, práctica de un sentido | `bench/practicas/clave-morse/transmisor/transmisor.ino` |
+| Receptor (placa B) | placa B, práctica de un sentido | `bench/practicas/clave-morse/receptor/receptor.ino` |
+
+**Librerías necesarias: ninguna.** Los tres sketches incluyen `<Arduino.h>` y
+dos de ellos `"soc/gpio_struct.h"`, que es parte de ESP-IDF y por tanto del
+core — no hay que abrir el Library Manager ni fijar ninguna versión. Lo que sí
+hace falta:
+
+- Core **`esp32` de Espressif** por Boards Manager
+  (`https://espressif.github.io/arduino-esp32/package_esp32_index.json`).
+  Compila con 2.x y con 3.x.
+- Placa **ESP32 Dev Module** (o la que realmente sea la tuya).
+- Monitor Serie a **115200**.
+- **GND común** entre las dos placas y **330 Ω** en serie en cada línea de señal.
+  **GPIO12 está prohibido**: un nivel alto en él al arrancar selecciona flash de
+  1,8 V.
+
+«Save sketch folder…» pide una **carpeta**, no un fichero, y crea dentro
+`transceptor/transceptor.ino`: el IDE de Arduino sólo abre un sketch cuya
+carpeta se llama igual que el fichero, y ese es el tropiezo típico justo en el
+paso en que el usuario ya ha salido de la app.
+
+Los ficheros **no están duplicados** en `desktop/`: se empaquetan en el bundle
+desde `bench/` en tiempo de compilación (`?raw`), así que lo que reparte la app
+es el mismo fichero con el que se flashean las placas del banco. Una placa con
+el sketch necesita el adaptador `kind: "morse"` (sección 3); una con
+`esp32dev_morse` no.
 
 ---
 
@@ -234,18 +343,20 @@ sentido) ni corrección de errores.
 Tres sesiones en el banco, un operador con las dos llaves. Evidencia completa en
 [`morse-duplex/evidencia/`](../bench/practicas/morse-duplex/evidencia/).
 
-**El enlace es transparente.** En las tres tandas, en los dos sentidos:
+**El enlace es transparente.** Las dos tandas con umbrales anotados, en los dos
+sentidos (la tercera —la etapa 1, sin calibrar— está en el
+[README de la práctica](../bench/practicas/morse-duplex/README.md)):
 
-| | Pulsos enviados / recibidos | Error máximo |
-|---|---|---|
-| Tanda 1 (A→B) | 13 / 13 | 1 ms |
-| Tanda 1 (B→A) | 15 / 15 | 1 ms |
-| Tanda 2 (A→B) | 49 / 49 | 1 ms |
-| Tanda 2 (B→A) | 30 / 30 | 1 ms |
+| Tanda | Evidencia | Pulsos enviados / recibidos | Error máximo |
+|---|---|---|---|
+| congelada (A→B) | `tanda_congelada_*.log` | 13 / 13 | 1 ms |
+| congelada (B→A) | `tanda_congelada_*.log` | 15 / 15 | 1 ms |
+| k40/l600 (A→B) | `tanda_k40_l600_*.log` | 49 / 49 | 1 ms |
+| k40/l600 (B→A) | `tanda_k40_l600_*.log` | 30 / 30 | 1 ms |
 
-Siempre con `filtrados=0`, `desbordes_buffer=0` y `niveles_repetidos=0`. El
-error de ±1 ms es el truncado de microsegundos a milisegundos en cada extremo,
-no una pérdida del cable.
+Siempre con `filtrados=0`, `desbordes_buffer=0` y `niveles_repetidos=0`, en las
+tres sesiones. El error de ±1 ms es el truncado de microsegundos a milisegundos
+en cada extremo, no una pérdida del cable.
 
 **Con umbrales iguales en las dos placas, el eco predice al receptor carácter
 por carácter.** Las dos cadenas salieron idénticas, sin una sola diferencia.
@@ -257,9 +368,10 @@ letra) y una `S` y una `O` fundidas (hueco <600 ms *entre* dos letras). Las dos
 poblaciones de huecos se solapan y ningún corte las separa.
 
 La causa es la mano, no el número: los huecos dentro de la letra midieron de 233
-a 570 ms cuando el punto mediano mide **123 ms**. El Morse estándar pide 1
-unidad de hueco de elemento, 3 entre letras y 7 entre palabras — para 123 ms eso
-es **123 / 369 / 861**. La corrección es **acortar la pausa entre los puntos de
+a **627 ms** —los dos más largos, 621 y 627, son precisamente los que partieron
+la `S`— cuando el punto mediano de esa mano mide **123 ms**. El Morse estándar
+pide 1 unidad de hueco de elemento, 3 entre letras y 7 entre palabras — para
+123 ms eso es **123 / 369 / 861**. La corrección es **acortar la pausa entre los puntos de
 una misma letra**; si baja a ~150 ms, `l≈300` y `w≈700` quedan con bandas
 anchas.
 
@@ -269,18 +381,22 @@ anchas.
 
 | Puerta | Qué cubre | Estado |
 |---|---|---|
-| `bench/practicas/morse-duplex/tests/run_tests.py` | el `.ino` real sobre un mock del core | 35 pruebas |
-| `bench/practicas/morse-duplex/tests/test_visor.py` | puente `--duplex` y visor, reproduciendo evidencia real | 27 pruebas |
-| `gateway/tests/test_morse_link.py` | vectores dorados; **re-decodifica la evidencia real** y exige las mismas letras que imprimió la placa | 20 pruebas |
-| `gateway/tests/test_morse_sketch.py` | el adaptador; replica **un log entero** en frames válidos | 13 pruebas |
-| `gateway/tests/test_morse_replay_link.py` | reproducción por REST | 3 pruebas |
-| `desktop` | sección Morse | 8 pruebas |
+| `bench/practicas/morse-duplex/tests/run_tests.py` | el `.ino` real sobre un mock del core | 44 pruebas |
+| `bench/practicas/morse-duplex/tests/test_visor.py` | puente `--duplex` y visor, reproduciendo evidencia real | 33 pruebas |
+| `gateway/tests/test_morse_link.py` | vectores dorados; **re-decodifica la evidencia real** y exige las mismas letras que imprimió la placa | 26 pruebas |
+| `gateway/tests/test_morse_sketch.py` | el adaptador; replica **un log entero** en frames válidos | 16 pruebas |
+| `gateway/tests/test_morse_replay_link.py` | reproducción por REST | 5 pruebas |
+| `desktop` | sección Morse, la onda (`morseWave`), la **cadencia** (`morseCadence`), la sección Sketches y la escritura del `.ino` | 73 pruebas |
 | `firmware/test/host` | **`esps_morse` en C11**: tabla, decodificador y llave, con `-Werror` + ASan/UBSan | 3 suites |
 | `pio run -e esp32dev_morse` | el firmware completo, con la mitad ESP-IDF | compila y **corre en las dos placas** |
 | Hardware | las dos placas, en la app, con telemetría real | verificado |
 
-Las tres primeras entran en `make check` (objetivo `bench-test`); las de
-`firmware/test/host` entran por `fw-test`.
+Todas entran en `make check`, pero por objetivos distintos: las **dos primeras**
+por `bench-test`, las **tres del gateway** por `gateway-test`, la del desktop por
+`desktop-test` y las de `firmware/test/host` por `fw-test`. `pio run -e
+esp32dev_morse` **no** entra en ninguno: `.github/workflows/ci.yml` construye
+sólo `esp32dev`, `esp32c3`, `esp32dev_dio_a` y `esp32dev_dio_b`, así que el
+firmware Morse hay que compilarlo a mano.
 
 ### Ejecutar el componente C11, en Linux y en Windows
 
@@ -326,9 +442,25 @@ Dos de los vectores sólo pueden existir aquí: el envolvimiento de `micros()` a
 los ~71,6 min y el de `millis()` a los ~49,7 días. Ninguna sesión de banco dura
 lo suficiente para encontrarlos.
 
-**La defensa contra la deriva** son los vectores dorados: la misma lógica existe
-en el sketch Arduino, en `morse_link.py` y —cuando exista— en `esps_morse`. Si
-cambias una, cambia las otras y el SPEC en el mismo commit.
+**La defensa contra la deriva** son los vectores dorados. La misma lógica existe
+hoy en las tres: el sketch Arduino, `morse_link.py` y `esps_morse` (las dos
+mitades). Conviene saber exactamente cuánto cubren:
+
+- El vector `SOS` es **idéntico** en `firmware/test/host/test_morse_decode.c` y
+  en `gateway/tests/test_morse_link.py`: mismos tiempos (punto 100, raya 400,
+  hueco 150, hueco de letra 900 ms), misma lista de eventos esperada y mismos
+  contadores.
+- El banco de pruebas del sketch (`bench/.../tests/host_duplex.cpp`) cubre los
+  **mismos casos** pero con sus propios tiempos (punto 100, raya 500, hueco 100)
+  y comparando el texto impreso, así que no es el mismo vector numérico.
+- El ancla común más fuerte es la evidencia grabada: `test_morse_link.py`
+  re-decodifica `tanda_k40_l600_*.log` entera y `test_morse_decode.c` replica dos
+  extractos de ese mismo log.
+- Los vectores **no** están en `SPEC-DUPLEX.md` — ese documento fija pines,
+  cableado, semántica, formato de salida, comandos y contadores. Los vectores
+  viven en las suites de arriba.
+
+Si cambias una implementación, cambia las otras y el SPEC en el mismo commit.
 
 ---
 

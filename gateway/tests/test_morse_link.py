@@ -262,3 +262,70 @@ def test_decoder_reproduces_what_the_real_board_printed(log, sentido):
         got = got[:-1]
     assert got == printed, f"{len(got)} decoded vs {len(printed)} printed"
     assert d.filtered == 0
+
+
+# -- the uint32 clocks wrap, and the mirror has to wrap with them ----------
+# Regression: morse_link used `(a - b) // 1000` where decode.c uses
+# `(uint32_t)(a - b) / 1000u` and key.c uses `(uint32_t)(now - t) >= d`.
+# Python ints do not wrap, so across the rollover the Python mirror decided
+# DIFFERENTLY from the C and the sketch -- the single worst failure this file
+# exists to prevent. These vectors pin the three together at the wrap.
+WRAP = 1 << 32
+
+
+def test_elapsed_ms_wraps_like_the_c_mirror():
+    assert M.elapsed_ms(2_000_000, 1_000_000) == 1000
+    # 200 ms that straddle the micros() rollover
+    assert M.elapsed_ms(100_000, WRAP - 100_000) == 200
+    assert M.elapsed_ms(0, WRAP - 1) == 0          # truncating, never rounded
+
+
+def test_a_pulse_across_the_micros_wrap_is_a_symbol_not_a_glitch():
+    """C: elapsed_ms() wraps, so a 200 ms press is a dot. Python used to get
+    a large negative duration, which is below debounce_ms, so it reported
+    `filtered` and the letter was silently lost."""
+    d = M.Decoder(M.Thresholds())
+    t_rise = WRAP - 100_000
+    d.edge(1, t_rise)
+    out = d.edge(0, (t_rise + 200_000) % WRAP)
+    assert [(e.kind, e.value, e.ms) for e in out] == [("symbol", ".", 200)]
+    assert d.filtered == 0 and d.dots == 1
+
+
+def test_a_gap_across_the_micros_wrap_still_closes_the_letter():
+    d = M.Decoder(M.Thresholds())
+    t_rise = WRAP - 300_000
+    d.edge(1, t_rise)
+    t_fall = (t_rise + 100_000) % WRAP
+    d.edge(0, t_fall)
+    evs = []
+    for i in range(1, 900):                        # 900 ms of silence, wrapping
+        evs += d.tick((t_fall + i * 1000) % WRAP)
+    assert [(e.kind, e.value) for e in evs] == [("letter", "E")]
+
+
+def test_feed_ticks_across_the_wrap():
+    d = M.Decoder(M.Thresholds())
+    t0 = WRAP - 50_000
+    evs = d.feed([(1, t0), (0, (t0 + 100_000) % WRAP)], settle_us=1_000_000)
+    assert [e.kind for e in evs] == ["symbol", "letter"]
+
+
+def test_key_accepts_an_edge_across_the_millis_wrap():
+    """key.c: `(uint32_t)(now_ms - k->t_candidate_ms) >= k->debounce_ms`.
+    Without the mask the stability window never elapses and the key jams for
+    the rest of the session."""
+    k = M.Key(debounce_ms=15)
+    t = WRAP - 5
+    assert k.sample(1, t) is None                  # candidate only
+    accepted = [(step, k.sample(1, (t + step) % WRAP)) for step in range(1, 40)]
+    fired = [(step, lv) for step, lv in accepted if lv is not None]
+    assert fired == [(15, 1)], "accepted exactly debounce_ms after the change"
+
+
+def test_bounces_never_go_negative():
+    """esps_morse_key_bounces() clamps; morse.bounces is a u32 channel, so a
+    negative here would be an exception at pack time, not a chart."""
+    k = M.Key()
+    k.raw_changes, k.accepted = 2, 5
+    assert k.bounces == 0

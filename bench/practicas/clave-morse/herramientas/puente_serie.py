@@ -578,6 +578,12 @@ def main(argv=None):
         ap.error(f"no encuentro el visor en {dir_visor}")
 
     bus, parar = Bus(), threading.Event()
+    # El modo se fija ANTES de levantar el HTTP: hilo_demo/hilo_reproducir tardan
+    # en publicarlo (primero parsean los logs enteros), y durante esa ventana
+    # /comando veia modo "vivo", contestaba 200 y encolaba una orden que nadie
+    # iba a sacar de la cola. El visor decia "enviado" sin haber enviado nada.
+    if args.demo or reproducir:
+        bus.estado["modo"] = "arrancando (sin placas)"
     colas = {"A": queue.Queue(), "B": queue.Queue()}
     srv = ThreadingHTTPServer(("127.0.0.1", args.port), BaseHTTPRequestHandler)
     puerto_http = srv.server_address[1]

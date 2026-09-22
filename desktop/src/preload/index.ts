@@ -25,6 +25,10 @@ const bridge: EspStationBridge = {
       ipcRenderer.on(IpcChannel.GatewayLog, listener)
       return () => ipcRenderer.removeListener(IpcChannel.GatewayLog, listener)
     }
+  },
+  sketch: {
+    save: (file: string, content: string) => ipcRenderer.invoke(IpcChannel.SketchSave, file, content),
+    copy: (content: string) => ipcRenderer.invoke(IpcChannel.SketchCopy, content)
   }
 }
 

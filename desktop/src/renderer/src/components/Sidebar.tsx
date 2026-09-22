@@ -23,6 +23,8 @@ const ENTRIES: NavEntry[] = [
   { id: 'networks', label: 'Networks', icon: icon('M8 2v3M3.5 12.5l3-3M12.5 12.5l-3-3M2 13h4M10 13h4M8 5a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm-5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm10 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z') },
   // Morse: a dot, a dash and a dot — the icon is the alphabet it carries.
   { id: 'morse', label: 'Morse', icon: icon('M3 8h.01M6 8h4M13 8h.01') },
+  // Sketches: a page with a folded corner — the .ino you take to the IDE.
+  { id: 'sketches', label: 'Sketches', icon: icon('M9.5 1.5H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5M9.5 1.5 13 5M9.5 1.5V5H13') },
   { id: 'lab', label: 'Lab', icon: icon('M6 2h4M6.5 2v4.5L3 12.8A1.4 1.4 0 0 0 4.2 15h7.6a1.4 1.4 0 0 0 1.2-2.2L9.5 6.5V2') },
   { id: 'flash', label: 'Flash', icon: icon('M9 1 3 9h4l-1 6 6-9H8Z') },
   { id: 'settings', label: 'Settings', icon: icon('M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm5.4-2a5.4 5.4 0 0 1-.1 1l1.3 1-1 1.7-1.5-.5a5.5 5.5 0 0 1-1.7 1l-.2 1.6H8.5l-.2-1.6a5.5 5.5 0 0 1-1.7-1l-1.5.5-1-1.7 1.3-1a5.4 5.4 0 0 1 0-2l-1.3-1 1-1.7 1.5.5a5.5 5.5 0 0 1 1.7-1L8.5 1h1.7l.2 1.6a5.5 5.5 0 0 1 1.7 1l1.5-.5 1 1.7-1.3 1c.07.33.1.66.1 1Z') }

@@ -137,10 +137,18 @@ void esps_morse_get_sample(esps_morse_sample_t *out);
  *
  * Returns false and changes nothing when the values are incoherent. Nothing
  * calls this today: it exists so S3 wires an EXP_SET to it rather than
- * writing it then. */
+ * writing it then.
+ *
+ * Callable from any task. The set is validated here and STAGED; the Morse
+ * task installs it between decoder calls, within one task period (1 ms).
+ * Writing the four values straight into a live decoder would let the 1 ms
+ * task run on half of one set and half of another -- a combination no caller
+ * asked for and the validator never saw. */
 bool esps_morse_set_thresholds(bool rx, const esps_morse_thresholds_t *th);
 
-/* Copies one decoder's current thresholds out. false for NULL args. */
+/* Copies one decoder's thresholds out: what set() last accepted, which for
+ * the millisecond before the task installs it is not yet what the decoder is
+ * running on. false for NULL args. */
 bool esps_morse_get_thresholds(bool rx, esps_morse_thresholds_t *out);
 
 /* --- Lifecycle ------------------------------------------------------------ */

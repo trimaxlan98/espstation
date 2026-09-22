@@ -25,7 +25,9 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import pathlib
+import struct
 import time
 from typing import AsyncIterator
 
@@ -33,8 +35,12 @@ from ..protocol import frames, messages as msg, spec as protocol_spec
 from .base import Transport, TransportError
 from .sim import morse_link as M
 
+log = logging.getLogger(__name__)
+
 # The sketch prints nothing in idle, so a line is always an event; 4 KiB is
 # far more than any single line and bounds the buffer if the port goes mad.
+# It bounds the UNTERMINATED TAIL only -- never a run of complete lines,
+# which is a different thing and used to be thrown away here in silence.
 MAX_LINE = 4096
 
 
@@ -94,6 +100,12 @@ class MorseSketchDecoder:
         # whose format drifted instead of silently seeing no telemetry.
         self.unparsed = 0
         self.lines = 0
+        # Lines whose numbers could not be put on the wire (a corrupted digit
+        # run, a threshold line with absurd fields). Counted, never raised:
+        # one flipped bit on a noisy USB cable must not take the link down.
+        self.malformed = 0
+        # Times an unterminated tail had to be truncated at MAX_LINE.
+        self.overlong = 0
         # Last `# modo ... verbose=N` the board announced. The cadence
         # channels only exist when verbose is on, so the adapter has to
         # know; None means it has not said yet.
@@ -183,12 +195,18 @@ class MorseSketchDecoder:
         if not chunk:
             return out
         self._buf += chunk
-        if len(self._buf) > MAX_LINE:
-            # Keep the tail: a line longer than this is garbage, not a line.
-            self._buf = self._buf[-MAX_LINE:]
         while b"\n" in self._buf:
             raw, self._buf = self._buf.split(b"\n", 1)
             out += self._line(raw)
+        # Bound only what is left over, i.e. a line with no terminator yet.
+        # Trimming before the split (what this used to do) threw away whole,
+        # perfectly good lines: SerialTransport reads in 4096-byte chunks, so
+        # any chunk landing on top of a partial line pushed the buffer past
+        # MAX_LINE and the head -- real telemetry -- was dropped in silence.
+        # A line longer than this really is garbage, not a line.
+        if len(self._buf) > MAX_LINE:
+            self.overlong += 1
+            self._buf = self._buf[-MAX_LINE:]
         return out
 
     def flush(self) -> list[tuple[str, object]]:
@@ -199,6 +217,26 @@ class MorseSketchDecoder:
 
     # -- one line ------------------------------------------------------
     def _line(self, raw: bytes) -> list[tuple[str, object]]:
+        """One line in, frames out, and never an exception.
+
+        The numeric fields of a line go straight into u32 telemetry samples,
+        so a single flipped bit -- `# RX pulso_ms=99999999999` -- made
+        struct.pack raise, the exception escaped feed(), Link._pump() caught
+        it and marked the link dead. One corrupt byte took a whole board
+        offline. Now the line is counted as malformed and dropped, which is
+        the same contract `unparsed` already had for format drift.
+        """
+        try:
+            return self._decide(raw)
+        except (ValueError, struct.error, OverflowError) as exc:
+            self.malformed += 1
+            if self.malformed == 1:   # once per decoder, then only counted
+                log.warning("morse adapter node %d: unusable line %r (%s); "
+                            "further ones are counted, not logged",
+                            self.node_id, raw[:120], exc)
+            return []
+
+    def _decide(self, raw: bytes) -> list[tuple[str, object]]:
         # 0xFF blocks show up in bench captures (README: cause not found);
         # dropping them keeps a usable line instead of discarding the event.
         text = raw.replace(b"\xff", b"").decode("latin1").replace("\r", "").strip()
@@ -353,11 +391,21 @@ class MorseLogReplayTransport(Transport):
     replay does, because nobody wants to watch 60 s of nothing.
     """
 
+    # A capture is a text log of one bench run; the real ones are a few
+    # hundred KiB. The cap is what stops `POST /api/links {"kind":
+    # "morse-replay", "path": "/some/huge/file"}` from pulling an arbitrary
+    # number of bytes into the gateway's memory in one go.
+    MAX_CAPTURE_BYTES = 64 * 1024 * 1024
+
     def __init__(self, path: str, *, speed: float = 1.0, max_gap_s: float = 3.0,
                  loop: bool = False) -> None:
         self.path = path
+        # NaN survives max() and would make every sleep() below NaN, so it is
+        # rejected here rather than turning the replay into a silent stall.
+        if speed != speed or max_gap_s != max_gap_s:
+            raise TransportError("speed and max_gap_s must be real numbers")
         self.speed = max(speed, 0.01)
-        self.max_gap_s = max_gap_s
+        self.max_gap_s = max(max_gap_s, 0.0)
         self.loop = loop
         self._closing = False
         self._lines: list[tuple[float, bytes]] = []
@@ -365,9 +413,15 @@ class MorseLogReplayTransport(Transport):
     def _load(self) -> None:
         import re
 
+        path = pathlib.Path(self.path)
+        size = path.stat().st_size          # OSError if it is not there
+        if size > self.MAX_CAPTURE_BYTES:
+            raise TransportError(
+                f"{self.path} is {size} bytes, over the "
+                f"{self.MAX_CAPTURE_BYTES}-byte replay limit")
         out: list[tuple[float, bytes]] = []
         t0: float | None = None
-        for raw in pathlib.Path(self.path).read_bytes().split(b"\n"):
+        for raw in path.read_bytes().split(b"\n"):
             txt = raw.replace(b"\xff", b"").decode("latin1").replace("\r", "")
             m = re.match(r"^\s*(\d+\.\d+) ?(.*)$", txt)
             if not m:
@@ -381,7 +435,10 @@ class MorseLogReplayTransport(Transport):
         self._lines = out
 
     async def open(self) -> None:
-        self._load()
+        # Reading and parsing the capture is blocking file I/O and this runs
+        # inside the POST /api/links handler: on the event loop it would stall
+        # every other link's pump for as long as the read takes.
+        await asyncio.get_running_loop().run_in_executor(None, self._load)
         self._closing = False
         if not self._lines:
             raise TransportError(f"{self.path} has no replayable lines")

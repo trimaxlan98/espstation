@@ -25,8 +25,26 @@
  * WHY NO linker.lf, unlike esps_dio. Its ISR runs the frame decoder and CRC,
  * so those objects must be in IRAM or a flash write would corrupt the link.
  * These ISRs only read the clock, read a pin and write a ring slot; they call
- * nothing from the pure half. The handlers themselves are IRAM_ATTR and the
- * ring lives in DRAM, which is the whole requirement.
+ * nothing from the pure half.
+ *
+ * WHAT "IRAM-SAFE" ACTUALLY REQUIRES. The handlers being IRAM_ATTR and the
+ * ring living in DRAM is NOT the whole requirement, and believing it was cost
+ * this component a crash bug: the handlers must also not CALL anything that
+ * lives in flash, because ESP_INTR_FLAG_IRAM leaves the interrupt enabled
+ * while the cache is off. The original code called gpio_get_level(), which is
+ * a real out-of-line function placed in IRAM only when
+ * CONFIG_GPIO_CTRL_FUNC_IN_IRAM=y -- it is not set in this build, and
+ * `xtensa-esp32-elf-nm firmware.elf` put it at 0x400d522c, i.e. in the
+ * flash-mapped region. An edge arriving during an NVS commit would have
+ * panicked the node. It now uses gpio_ll_get_level(), a static inline register
+ * read, which is the same idiom esps_dio settled on for the same reason. The
+ * two remaining calls are esp_timer_get_time() (IRAM,
+ * CONFIG_ESP_TIMER_IN_IRAM=y) and nothing else.
+ *
+ * NOT VERIFIED ON HARDWARE. The paragraph above is a reading of the linked
+ * ELF and this build's sdkconfig, not a measurement. The test that settles it
+ * is keying continuously while the station writes a label (which commits to
+ * NVS) and seeing the node survive.
  */
 #include "esps_morse.h"
 
@@ -41,15 +59,61 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "hal/gpio_ll.h"
+#include "soc/gpio_struct.h"
 
 #include <string.h>
 
 static const char *TAG = "morse";
 
-/* Bytes (ESP-IDF's xTaskCreate takes bytes, not words). The task runs two
- * decoders, a filter and the event sink; 4 KiB leaves room for the sink's
- * JSON building, which is the deepest thing reachable from this stack. */
-#define MORSE_TASK_STACK 4096
+/* Bytes (ESP-IDF's xTaskCreate takes bytes, not words).
+ *
+ * MEASURED, not guessed. It used to say 4096 because "the sink's JSON
+ * building is the deepest thing reachable from this stack", and that was
+ * simply wrong: the deepest branch is the FRAMING one, and it is more than
+ * twice as deep as the printing one.
+ *
+ * `entry a1, N` prologues read off this build with
+ * xtensa-esp32-elf-objdump -d firmware.elf:
+ *
+ *   common head (service_key/service_rx are inlined into the task)
+ *     morse_task 128 -> key_step 32 -> publish_all 96 (publish/emit inlined)
+ *       -> morse_event_sink 48 -> send_json_frame (inlined)      = 304 B
+ *
+ *   framing branch
+ *     ... -> send_raw_frame 960        (its 900-byte frame buffer)
+ *       -> esps_enlp_encode_cobs 1088  (its MAX_FRAME scratch)
+ *       -> esps_enlp_encode 48                             = 2400 B
+ *
+ *   printing branch (governs, summed the conservative way esps_dio does)
+ *     ... -> cJSON_PrintUnformatted 32 -> print_value 96
+ *       -> sprintf 192 -> _svfprintf_r 800 -> _dtoa_r 160  = 2672 B
+ *     cJSON's print_number only takes the sprintf/sscanf round-trip for
+ *     non-integral doubles, and every number this component puts in an event
+ *     (ts_ms, byte, ms, suppressed) is an integer -- so the 896-byte
+ *     __ssvfscanf_r frame is currently unreachable. "Currently" is the
+ *     problem: one float added to the event JSON would pull it back in, and
+ *     the margin has to survive that.
+ *
+ * On top of the task's own worst case:
+ *   + ~256 B  Xtensa interrupt entry frame -- low/medium-priority ISRs run on
+ *             the stack of whatever task they interrupt, not a separate stack
+ *   +  ~96 B  this component's own handlers (entry a1, 32 each, plus
+ *             esp_timer_get_time)
+ *
+ *   2672 + 256 + 96 = 3024 B governing.
+ *
+ * 4096 left 1072 B, 26%. esps_dio faced the same call graph and required 40%,
+ * explicitly rejecting 17% because the walk leaves the indirect calls
+ * (g_link.send, the UART driver tail) unresolved and the margin has to absorb
+ * real unknowns. 6144 gives 3120 B, 51%, and costs 2 KB of DRAM on a node
+ * with ~150 KB free. CONFIG_FREERTOS_CHECK_STACKOVERFLOW_CANARY is on, so
+ * getting this wrong is a panic while emitting the very event that would
+ * explain it.
+ *
+ * report_stack() below prints the real high-water mark, so this arithmetic is
+ * replaced by a measurement the first time the firmware runs. */
+#define MORSE_TASK_STACK 6144
 /* Below the link tasks on purpose: missing a millisecond of key polling
  * degrades a measurement, while starving the UART loses frames. */
 #define MORSE_TASK_PRIO 9
@@ -107,6 +171,16 @@ static uint32_t s_rl_suppressed;
 
 static uint32_t s_reported_rx_dropped;
 static uint32_t s_reported_key_dropped;
+static uint32_t s_drop_log_ms;
+static bool s_stack_reported;
+
+/* The last millisecond stamp handed to the key filter. See key_clock(). */
+static uint32_t s_key_last_ms;
+
+/* Thresholds staged by esps_morse_set_thresholds() for the task to install.
+ * [0] is RX, [1] is TX. */
+static esps_morse_thresholds_t s_pending_th[2];
+static volatile bool s_pending[2];
 
 /* --- the NDB table ------------------------------------------------------- */
 
@@ -152,7 +226,11 @@ static void IRAM_ATTR isr_push(volatile edge_t *ring, uint32_t depth,
                                volatile uint32_t *head, volatile uint32_t *tail,
                                volatile uint32_t *dropped, int pin) {
     const uint32_t now = (uint32_t)esp_timer_get_time();
-    const uint8_t level = (uint8_t)gpio_get_level((gpio_num_t)pin);
+    /* gpio_ll_get_level, not gpio_get_level: the latter is an out-of-line
+     * function in flash in this build, and calling it from a handler
+     * registered with ESP_INTR_FLAG_IRAM panics the moment the cache is off.
+     * See the file header. */
+    const uint8_t level = (uint8_t)gpio_ll_get_level(&GPIO, (gpio_num_t)pin);
     const uint32_t h = *head;
     const uint32_t next = (h + 1u) % depth;
     if (next == *tail) {
@@ -176,7 +254,85 @@ static void IRAM_ATTR isr_key(void *arg) {
              ESPS_MORSE_PIN_KEY);
 }
 
+/* --- the two clocks ------------------------------------------------------- */
+
+/* This component uses TWO time bases and they are not interchangeable:
+ *
+ *   - 32-bit MICROSECONDS, (uint32_t)esp_timer_get_time(), for the decoders.
+ *     Wraps every 71.6 min, at a power of two, so the decoder's unsigned
+ *     subtraction is exact across the wrap [D-10].
+ *   - 32-bit MILLISECONDS, esps_time_now_ms(), for the key filter and the
+ *     rate limiter. Wraps every 49.7 days, also at a power of two.
+ *
+ * The bug this replaces mixed them: the key filter was fed `t_us / 1000u` for
+ * a captured edge and esps_time_now_ms() for the acceptance poll. Those two
+ * agree only while the microsecond counter has not wrapped -- for the first
+ * 71.6 minutes of uptime -- and afterwards one restarts near zero while the
+ * other keeps climbing. From then on every `(uint32_t)(now_ms - t_candidate)`
+ * is an enormous number, always >= debounce_ms, and the key debounce is
+ * silently off for the rest of the run, with the bounce counter reporting
+ * zero because every raw change became an accepted edge.
+ *
+ * So: one esp_timer read reported in both units, and a captured stamp is
+ * converted to milliseconds by its AGE, never by division. */
+static uint32_t morse_now(uint32_t *out_us) {
+    const int64_t t = esp_timer_get_time();
+    *out_us = (uint32_t)t;
+    return (uint32_t)(t / 1000); /* identical to esps_time_now_ms() */
+}
+
+/* Millisecond stamp, in the node's ms base, of an edge the ISR captured at
+ * `t_us`, relative to the reference pair (`ref_us`, `ref_ms`) read from one
+ * esp_timer call.
+ *
+ * An edge captured AFTER the reference read is not hypothetical: the ISR can
+ * fire while this task is draining the ring. Its age would underflow to
+ * ~4.29e9 us, and the filter would read that as "held long enough". Such a
+ * stamp is clamped to the reference, i.e. treated as "now" -- never as the
+ * future. */
+static uint32_t stamp_ms(uint32_t t_us, uint32_t ref_us, uint32_t ref_ms) {
+    const uint32_t age_us = ref_us - t_us;
+    if (age_us >= 0x80000000u) {
+        return ref_ms;
+    }
+    return ref_ms - age_us / 1000u;
+}
+
+/* The key filter asks "has the reading held for debounce_ms?" with an
+ * unsigned subtraction, so a stamp that goes BACKWARDS reads as ~49 days and
+ * accepts on the spot -- which is exactly the bounce the filter exists to
+ * reject. Two things can make a stamp go backwards even after stamp_ms():
+ * a ring entry captured before the previous iteration's acceptance poll, and
+ * the drain and the poll reading the clock at different moments. The guard
+ * belongs here and not in the pure half, which cannot know about either.
+ *
+ * Signed comparison, so it stays correct across the 49.7 day wrap: successive
+ * stamps are milliseconds apart, never 24.8 days apart. */
+static uint32_t key_clock(uint32_t at_ms) {
+    if ((int32_t)(at_ms - s_key_last_ms) < 0) {
+        return s_key_last_ms;
+    }
+    s_key_last_ms = at_ms;
+    return at_ms;
+}
+
 /* --- events -------------------------------------------------------------- */
+
+/* Reports the task's stack high-water mark once, so nobody has to trust the
+ * arithmetic at MORSE_TASK_STACK. Called right after the first event has
+ * RETURNED, because emitting an event is the deepest path in the component
+ * and a panic there would take with it the number that explains the panic. */
+static void report_stack(const char *when) {
+    if (s_stack_reported || s_task == NULL) {
+        return;
+    }
+    s_stack_reported = true;
+    /* ESP-IDF's uxTaskGetStackHighWaterMark returns bytes, not words. */
+    const unsigned free_b = (unsigned)uxTaskGetStackHighWaterMark(s_task);
+    ESP_LOGI(TAG, "morse task stack after %s: %u B never used of %u B allocated (%u B used)",
+             when, free_b, (unsigned)MORSE_TASK_STACK,
+             (unsigned)MORSE_TASK_STACK - free_b);
+}
 
 void esps_morse_set_event_sink(esps_morse_event_sink_fn fn, void *ctx) {
     s_sink = fn;
@@ -201,6 +357,7 @@ static bool rl_admit(uint32_t now_ms) {
 static void emit(const esps_morse_station_event_t *ev) {
     if (s_sink != NULL) {
         s_sink(ev, s_sink_ctx);
+        report_stack("the first event");
     }
 }
 
@@ -270,12 +427,42 @@ static void publish_all(const esps_morse_event_t *evs, size_t n, const char *dir
 
 /* --- the task ------------------------------------------------------------ */
 
+/* One step of the key filter, with the wire write an acceptance implies.
+ *
+ * The accepted edge is stamped with the time of the WIRE WRITE, not with the
+ * time of the contact change that caused it. That is deliberate and it is a
+ * fix: the far end measures durations off the wire, and the local TX echo is
+ * only worth having if it describes the same signal the far end sees. The old
+ * code stamped a drain-path acceptance with the contact-change time and a
+ * poll-path acceptance with the poll time, so the echo's pulse durations and
+ * the far end's could differ by up to debounce_ms with nothing saying so --
+ * and the duration comparison between the two boards is the whole point of
+ * the practice (SPEC-DUPLEX.md, "Lo que si se puede medir"). */
+static void key_step(uint8_t reading, uint32_t at_ms, esps_morse_event_t *evs) {
+    const int accepted = esps_morse_key_sample(&s_key, reading, key_clock(at_ms));
+    if (accepted < 0) {
+        return;
+    }
+    gpio_set_level((gpio_num_t)ESPS_MORSE_PIN_TX_DATA, accepted);
+    gpio_set_level((gpio_num_t)ESPS_MORSE_PIN_LED_TX, accepted);
+    uint32_t wire_us = 0;
+    const uint32_t wire_ms = morse_now(&wire_us);
+    const size_t n = esps_morse_edge(&s_tx, (uint8_t)accepted, wire_us, evs, MAX_EV);
+    publish_all(evs, n, "TX", wire_ms);
+}
+
 /* Replays every raw key change the ISR captured, in order, through the pure
  * filter, then polls once with the current level so an edge whose debounce
  * deadline has passed is accepted this millisecond. Writes the wire the
- * moment one is. */
-static void service_key(uint32_t now_ms, uint32_t now_us) {
+ * moment one is.
+ *
+ * Reads its own clock rather than taking the caller's: the reference has to
+ * be no older than the ring entries it is used to date, and the acceptance
+ * poll has to be no older than the drain that preceded it. */
+static void service_key(void) {
     esps_morse_event_t evs[MAX_EV];
+    uint32_t ref_us = 0;
+    const uint32_t ref_ms = morse_now(&ref_us);
 
     while (s_key_tail != s_key_head) {
         const uint32_t t = s_key_tail;
@@ -283,28 +470,36 @@ static void service_key(uint32_t now_ms, uint32_t now_us) {
         const uint32_t t_us = s_key_ring[t].t_us;
         s_key_tail = (t + 1u) % KEY_RING;
 
-        /* The captured change gets its OWN timestamp: feeding it `now_ms`
-         * would restart the stability clock a millisecond late and let a
-         * bounce look stable. */
-        const int accepted = esps_morse_key_sample(&s_key, level, t_us / 1000u);
-        if (accepted >= 0) {
-            gpio_set_level((gpio_num_t)ESPS_MORSE_PIN_TX_DATA, accepted);
-            gpio_set_level((gpio_num_t)ESPS_MORSE_PIN_LED_TX, accepted);
-            const size_t n = esps_morse_edge(&s_tx, (uint8_t)accepted, t_us, evs, MAX_EV);
-            publish_all(evs, n, "TX", now_ms);
-        }
+        /* The captured change gets its OWN timestamp: dating it "now" would
+         * restart the stability clock late and let a bounce look stable. */
+        const uint32_t at_ms = stamp_ms(t_us, ref_us, ref_ms);
+
+        /* TWO steps, and the order matters.
+         *
+         * First advance the filter's clock to this change's own time WITHOUT
+         * changing the reading -- feeding the current candidate back is a
+         * no-op for change detection and evaluates the pending deadline. Then
+         * feed the change itself.
+         *
+         * Without the first step, a press that began AND ended between two
+         * task periods was thrown away: the second ring entry hit the "the
+         * reading changed" branch and returned before the first entry's
+         * deadline had ever been looked at, so a perfectly legal 20 ms press
+         * never reached the wire and nothing counted it. It needs the task to
+         * miss >= debounce_ms, which is a contention symptom rather than a
+         * normal-path one -- and a link that silently drops symbols under
+         * load is exactly the failure a bench session blames on the operator. */
+        key_step(s_key.candidate, at_ms, evs);
+        key_step(level, at_ms, evs);
     }
 
-    /* The acceptance poll. Nothing changed on the pin, so this only asks
-     * "has the candidate held long enough yet?". */
-    const uint8_t level = (uint8_t)gpio_get_level((gpio_num_t)ESPS_MORSE_PIN_KEY);
-    const int accepted = esps_morse_key_sample(&s_key, level, now_ms);
-    if (accepted >= 0) {
-        gpio_set_level((gpio_num_t)ESPS_MORSE_PIN_TX_DATA, accepted);
-        gpio_set_level((gpio_num_t)ESPS_MORSE_PIN_LED_TX, accepted);
-        const size_t n = esps_morse_edge(&s_tx, (uint8_t)accepted, now_us, evs, MAX_EV);
-        publish_all(evs, n, "TX", now_ms);
-    }
+    /* The acceptance poll, on a reading of the live pin and a clock read
+     * taken AFTER the drain so the stamps never go backwards. Nothing
+     * necessarily changed on the pin, so this only asks "has the candidate
+     * held long enough yet?". */
+    uint32_t now_us = 0;
+    const uint32_t now_ms = morse_now(&now_us);
+    key_step((uint8_t)gpio_get_level((gpio_num_t)ESPS_MORSE_PIN_KEY), now_ms, evs);
 }
 
 static void service_rx(uint32_t now_ms) {
@@ -323,10 +518,28 @@ static void service_rx(uint32_t now_ms) {
 
 /* A dropped edge is a measurement that silently never happened, which is the
  * one failure mode this practice must never hide: the station's cross-check
- * would show a mismatch with no explanation. */
-static void report_drops(void) {
+ * would show a mismatch with no explanation.
+ *
+ * Throttled to once a second. The unthrottled version logged on every task
+ * period in which a drop had happened, i.e. up to 1000 lines a second on a
+ * line oscillating fast enough to keep the ring full -- and ESP_LOGW here is
+ * not cheap: the log hook reframes each line into an ENLP LOG frame and hands
+ * it to the UART, which BLOCKS once its TX buffer fills. A blocking call at
+ * 1 kHz on a priority-9 task is how a diagnostic turns into the fault it was
+ * reporting. One line per second still names every dropped edge, because the
+ * count is a difference and not a rate. */
+#define DROP_LOG_PERIOD_MS 1000u
+
+static void report_drops(uint32_t now_ms) {
     const uint32_t rx = s_rx_dropped;
     const uint32_t key = s_key_dropped;
+    if (rx == s_reported_rx_dropped && key == s_reported_key_dropped) {
+        return;
+    }
+    if ((uint32_t)(now_ms - s_drop_log_ms) < DROP_LOG_PERIOD_MS) {
+        return;
+    }
+    s_drop_log_ms = now_ms;
     if (rx != s_reported_rx_dropped) {
         ESP_LOGW(TAG, "RX ring overflow: %lu edges dropped",
                  (unsigned long)(rx - s_reported_rx_dropped));
@@ -339,6 +552,18 @@ static void report_drops(void) {
     }
 }
 
+/* Installs whatever esps_morse_set_thresholds() staged. Runs on the task and
+ * between decoder calls, so a decoder can never observe half of a set. */
+static void apply_pending_thresholds(void) {
+    for (int i = 0; i < 2; i++) {
+        if (!s_pending[i]) {
+            continue;
+        }
+        s_pending[i] = false;
+        (void)esps_morse_dec_set_thresholds(i == 0 ? &s_rx : &s_tx, &s_pending_th[i]);
+    }
+}
+
 static void morse_task(void *arg) {
     (void)arg;
     ESP_LOGI(TAG, "transceiver up: key=%d tx=%d rx=%d (p=%lu l=%lu w=%lu d=%lu)",
@@ -348,36 +573,95 @@ static void morse_task(void *arg) {
 
     TickType_t last = xTaskGetTickCount();
     for (;;) {
-        const uint32_t now_us = (uint32_t)esp_timer_get_time();
-        const uint32_t now_ms = esps_time_now_ms();
+        uint32_t now_us = 0;
+        uint32_t now_ms = morse_now(&now_us);
         esps_morse_event_t evs[MAX_EV];
 
+        apply_pending_thresholds();
         service_rx(now_ms);
-        service_key(now_ms, now_us);
+        service_key();
+
+        /* THE CLOCK IS RE-READ HERE, and that is a fix, not tidiness.
+         *
+         * Servicing above feeds the decoders edges stamped by the ISR, and an
+         * ISR can fire after the read at the top of this loop -- the window is
+         * the whole of service_rx() plus the drain loop's own re-check. Such
+         * an edge lands in the decoder with t_fall_us AHEAD of `now_us`, and
+         * esps_morse_tick()'s wrap-safe unsigned subtraction cannot tell "30
+         * microseconds in the future" from "71.6 minutes ago": it computes a
+         * gap of ~4294967 ms, which clears letter_ms and word_ms at once, and
+         * tears the symbol that just arrived off into its own letter followed
+         * by a word gap. On a hand keying ~10 symbols a second that is a
+         * mangled letter every few minutes, arriving as a perfectly
+         * well-formed event with nothing marking it as wrong.
+         *
+         * A read taken after servicing is no earlier than any stamp the
+         * decoders now hold, which is exactly the contract tick() needs. */
+        now_ms = morse_now(&now_us);
 
         /* Ticks close letters and words. Both decoders every period: a
          * silence is only a silence once enough of it has passed, and
          * nothing else will notice. */
-        publish_all(evs, esps_morse_tick(&s_rx, now_us, evs, MAX_EV), "RX", now_ms);
-        publish_all(evs, esps_morse_tick(&s_tx, now_us, evs, MAX_EV), "TX", now_ms);
+        size_t n = esps_morse_tick(&s_rx, now_us, evs, MAX_EV);
+        publish_all(evs, n, "RX", now_ms);
+        n = esps_morse_tick(&s_tx, now_us, evs, MAX_EV);
+        publish_all(evs, n, "TX", now_ms);
 
-        report_drops();
+        report_drops(now_ms);
+        if (now_ms >= 15000u) {
+            report_stack("15 s");
+        }
         vTaskDelayUntil(&last, pdMS_TO_TICKS(MORSE_TASK_PERIOD_MS));
     }
 }
 
 /* --- thresholds and telemetry --------------------------------------------- */
 
+/* Staged rather than written straight into the decoder.
+ *
+ * esps_morse_dec_set_thresholds() copies a 16-byte struct. Called from
+ * another task -- and the whole reason this function exists is for S3 to wire
+ * an EXP_SET to it, which arrives on the link's RX task -- that copy races
+ * the 1 ms task reading th.debounce_ms and th.dot_dash_ms inside
+ * esps_morse_edge(). The decoder could then run on a new dot_dash_ms with an
+ * old letter_ms: a combination no caller ever asked for and
+ * esps_morse_thresholds_valid() never saw. Validating here and letting the
+ * task install the set between decoder calls makes the tear impossible
+ * without putting a lock on a 1 ms path.
+ *
+ * The coherence rules are still the decoder's, so a bad EXP_SET can never
+ * leave a decoder in a state where letters never close.
+ *
+ * Only one set per direction can be in flight; a second before the task has
+ * run replaces the first. At a 1 ms period that is a millisecond-wide window
+ * and a station sending two EXP_SETs inside it has no defined ordering
+ * anyway. */
 bool esps_morse_set_thresholds(bool rx, const esps_morse_thresholds_t *th) {
-    /* The decoder validates and refuses incoherent sets itself, so a bad
-     * EXP_SET can never leave a decoder in a state where letters never
-     * close. */
-    return esps_morse_dec_set_thresholds(rx ? &s_rx : &s_tx, th);
+    if (!esps_morse_thresholds_valid(th)) {
+        return false;
+    }
+    const int i = rx ? 0 : 1;
+    s_pending[i] = false; /* stop the task consuming a half-written copy */
+    s_pending_th[i] = *th;
+    s_pending[i] = true;
+    if (!s_ready) {
+        /* No task to install it: do it here, where there is no race. */
+        apply_pending_thresholds();
+    }
+    return true;
 }
 
 bool esps_morse_get_thresholds(bool rx, esps_morse_thresholds_t *out) {
     if (out == NULL) {
         return false;
+    }
+    const int i = rx ? 0 : 1;
+    /* Report what set() last accepted, not what is installed, so a get
+     * immediately after a set does not hand back the old values during the
+     * millisecond before the task picks the new ones up. */
+    if (s_pending[i]) {
+        *out = s_pending_th[i];
+        return true;
     }
     *out = rx ? s_rx.th : s_tx.th;
     return true;
@@ -465,9 +749,19 @@ static bool install_isrs(void) {
     err = gpio_isr_handler_add((gpio_num_t)ESPS_MORSE_PIN_KEY, isr_key, NULL);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "isr_handler_add(key) failed: %s", esp_err_to_name(err));
+        gpio_isr_handler_remove((gpio_num_t)ESPS_MORSE_PIN_RX_DATA);
         return false;
     }
     return true;
+}
+
+/* Leaving the handlers installed with no task to drain what they push is not
+ * harmless: the rings fill once and then every edge is counted as dropped
+ * forever, and nobody is running to say so. main.c logs "the node continues
+ * without it" and means it. */
+static void remove_isrs(void) {
+    gpio_isr_handler_remove((gpio_num_t)ESPS_MORSE_PIN_RX_DATA);
+    gpio_isr_handler_remove((gpio_num_t)ESPS_MORSE_PIN_KEY);
 }
 
 bool esps_morse_start(void) {
@@ -501,12 +795,18 @@ bool esps_morse_start(void) {
     }
 
     s_rl_window_start_ms = esps_time_now_ms();
+    s_drop_log_ms = s_rl_window_start_ms;
+    /* The key filter's stamps must never go backwards, and the first one it
+     * ever sees has to start the sequence somewhere. */
+    s_key_last_ms = s_rl_window_start_ms;
     s_ready = true;
 
     if (xTaskCreatePinnedToCore(morse_task, "morse", MORSE_TASK_STACK, NULL,
                                 MORSE_TASK_PRIO, &s_task, MORSE_TASK_CORE) != pdPASS) {
         ESP_LOGE(TAG, "xTaskCreatePinnedToCore failed");
+        s_task = NULL;
         s_ready = false;
+        remove_isrs();
         return false;
     }
     return true;

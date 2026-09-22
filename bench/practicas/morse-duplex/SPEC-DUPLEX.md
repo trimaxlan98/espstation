@@ -234,8 +234,27 @@ el que casi siempre hay que ajustar. Con **`t`** delante van al eco local.
 | `c` | pone a cero **todos** los contadores (los dos sentidos y la llave) |
 | `r` | imprime umbrales, contadores y modo |
 
+`<ms>` es **obligatorio y todo cifras** en `p`, `l`, `w`, `d` y `k`. `k` a secas,
+`kx` o `d 25` se rechazan con el mensaje de rango; no valen 0. Es deliberado:
+`atol("")` vale 0, y 0 es un valor válido tanto para `k` como para `d`, así que un
+dedazo apagaba el antirrebote **en silencio** y la tanda se llenaba de símbolos de
+rebote sin que nada lo dijera.
+
 Un comando que no encaje responde `# rechazado: comando desconocido <cmd>`, para
 que un dedazo en el monitor serie no pase por silencio.
+
+### `e` resincroniza el eco al encenderlo
+
+Con el eco apagado, la llave sigue saliendo al cable pero el decodificador `TX`
+deja de recibir flancos y se queda congelado en el nivel que tuviera. Si se apagó
+con la llave **cerrada**, al volver a encenderlo estaría desfasado: la siguiente
+bajada mediría contra un `t_subida_us` de hace minutos y saldría una raya falsa de
+varios segundos con su letra inventada.
+
+Por eso `e`, **al encender**, compara el nivel del decodificador con el de la
+llave: si no coinciden se perdieron flancos, y entonces descarta el pulso y la
+letra a medias y parte del nivel real. Si coinciden no toca nada, así que apagar
+y encender el eco a mitad de una pulsación **no** pierde ese símbolo.
 
 ## Contadores
 

@@ -13,6 +13,12 @@ import { defineConfig } from 'vitest/config'
 // imports the app code uses.
 export default defineConfig({
   plugins: [react()],
+  // The bench sketches live above this package and are pulled in with `?raw`
+  // (lib/sketches.ts). Vite's dev/test server refuses to read outside its
+  // root unless the path is allowed, and the refusal ("Denied ID ...") is the
+  // same whether the alias is wrong or merely unallowed — narrow it to the
+  // one directory so a genuinely wrong path still fails.
+  server: { fs: { allow: [resolve('.'), resolve('../bench/practicas')] } },
   test: {
     include: [
       'src/renderer/src/lib/**/*.test.ts',
@@ -27,7 +33,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@renderer': resolve('src/renderer/src'),
-      '@shared': resolve('src/shared')
+      '@shared': resolve('src/shared'),
+      '@sketches': resolve('../bench/practicas')
     }
   }
 })

@@ -544,7 +544,7 @@ $("#gndchk").addEventListener("change", (e) => gnd(e.target.checked)); gnd(true)
 
 /* ============ 2. EN VIVO (circuito real, por el puente serie) ============ */
 const V = { es: null, ok: false, flancos: [], bev: [], letras: [], texto: "", cA: [], cB: [], est: {}, umb: null,
-            cntA: null, cntB: null, ultSim: null, ultPulso: null, pausa: false, misma: location.protocol.indexOf("http") === 0, rellenados: false };
+            cntA: null, cntB: null, ultSim: null, ultPulso: null, pausa: false, ultN: 0, misma: location.protocol.indexOf("http") === 0, rellenados: false };
 const recorta = (a, n) => { if (a.length > n) a.splice(0, a.length - n); };
 function vConectar(forzar) {
   if (forzar && V.es) { V.es.close(); V.es = null; }
@@ -556,6 +556,17 @@ function vConectar(forzar) {
   V.es.onmessage = (m) => { try { vProcesar(JSON.parse(m.data)); } catch (e) { /* línea ilegible: se ignora */ } };
 }
 function vProcesar(e) {
+  // /eventos reenvia el historial entero a CADA conexion nueva y
+  // EventSource reconecta solo (reinicio del puente, suspension del
+  // portatil). Sin este filtro, una reconexion repetia hasta 800 eventos:
+  // letras duplicadas y contadores disparados. Cada evento ya trae un `n`
+  // monotono del bus, asi que basta con no volver atras. Un `n` que
+  // reempieza en 1 es un puente nuevo, no un duplicado: se limpia.
+  if (typeof e.n === "number") {
+    if (e.n === 1 && V.ultN > 1) vLimpiar();
+    else if (e.n <= V.ultN) return;
+    V.ultN = e.n;
+  }
   const tms = e.t * 1000;
   if (e.src === "puente") { if (e.tipo === "estado") V.est = e; return; }
   const cons = e.src === "A" ? V.cA : V.cB;
@@ -667,7 +678,8 @@ $("#vAplicar").onclick = async () => {
   } catch (e) { alert("No se pudo aplicar: " + e.message); }
 };
 $("#vPausa").onclick = (e) => { V.pausa = !V.pausa; e.target.setAttribute("aria-pressed", V.pausa); e.target.textContent = V.pausa ? "Reanudar" : "Pausar"; };
-$("#vBorrar").onclick = () => { V.flancos = []; V.bev = []; V.letras = []; V.texto = ""; V.cA = []; V.cB = []; };
+function vLimpiar() { V.flancos = []; V.bev = []; V.letras = []; V.texto = ""; V.cA = []; V.cB = []; }
+$("#vBorrar").onclick = vLimpiar;
 $("#vReconectar").onclick = () => vConectar(true);
 $("#vVentana").addEventListener("change", vSenal);
 setInterval(() => { if ($("#tab-vivo").classList.contains("on")) vRefrescar(); }, 100);

@@ -73,3 +73,72 @@ def test_a_missing_capture_is_a_clean_error(client, tmp_path):
 def test_path_is_required(client):
     r = client.post("/api/links", headers=AUTH, json={"kind": "morse-replay"})
     assert r.status_code == 400
+
+
+# -- the poll task ---------------------------------------------------------
+class _FakeLink:
+    def __init__(self):
+        self.id, self.connected = "morse-1", True
+        self.meta = {}
+
+
+class _FakeTransport:
+    def __init__(self):
+        self.written: list[str] = []
+
+    async def write_text(self, text):
+        self.written.append(text)
+
+
+class _FakeDecoder:
+    verbose = None
+
+
+async def test_morse_poll_primes_verbose_even_when_the_board_answers_late(monkeypatch):
+    """Regression: the adapter checked `decoder.verbose == 0` exactly once,
+    0.8 s after attach. A board that had not finished answering `r` by then
+    left verbose None, the `v` was never sent, and morse.pulse_ms /
+    morse.gap_ms stayed empty for the whole session -- the precise failure
+    D-22 says `v` exists to prevent."""
+    import asyncio as _asyncio
+
+    from espstation_gateway.runtime import GatewayRuntime
+    from espstation_gateway.store import Store
+
+    real_sleep = _asyncio.sleep
+    monkeypatch.setattr(_asyncio, "sleep", lambda d: real_sleep(0))
+
+    rt = GatewayRuntime(Store(":memory:"))
+    link, transport, decoder = _FakeLink(), _FakeTransport(), _FakeDecoder()
+
+    async def answer_late():
+        while len(transport.written) < 3:     # the board is slow: two `r` go
+            await real_sleep(0)               # out before it says anything
+        decoder.verbose = 0
+
+    async def stop_soon():
+        while transport.written.count("v" + chr(10)) == 0:
+            await real_sleep(0)
+        await real_sleep(0)
+        link.connected = False
+
+    await _asyncio.wait_for(_asyncio.gather(
+        rt._morse_poll(link, transport, decoder, verbose=True, period_s=0.0),
+        answer_late(), stop_soon()), timeout=10)
+
+    assert transport.written.count("v" + chr(10)) == 1, "exactly one `v` per attach"
+    assert transport.written.count("r" + chr(10)) >= 2
+    assert transport.written[0] == "r" + chr(10), "`r` first: never guess, ask"
+
+
+async def test_two_morse_sources_never_share_a_node_id():
+    """The id is only 8 bits of the path, so a board and a capture can collide.
+    Two links on one node id merge downstream and their TELEM_ACKs cross."""
+    from espstation_gateway.runtime import GatewayRuntime
+    from espstation_gateway.store import Store
+
+    rt = GatewayRuntime(Store(":memory:"))
+    a = rt._morse_node_id("/tmp/one.log")
+    rt.links["morse-1"] = type("L", (), {"meta": {"node_id": a}})()
+    b = rt._morse_node_id("/tmp/one.log")      # same source, now taken
+    assert a != b and (b >> 8) == 0x4D

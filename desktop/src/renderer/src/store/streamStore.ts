@@ -10,7 +10,23 @@ import type { EventStreamData, LogStreamData, TelemetryPoint } from '../lib/apiT
 
 const DEFAULT_CAPACITY = 1200 // ~ 20 min at 1 Hz, or 24 s at 50 Hz — plenty for a live chart window
 const LOG_CAPACITY = 500
-const EVENT_CAPACITY = 200
+/**
+ * One rail, shared by every node and every event code, so a chatty node
+ * evicts a quiet one's history.
+ *
+ * 200 was sized for nodes that emit an event when something notable happens.
+ * The Morse practice broke that assumption: a board emits `morse.symbol` per
+ * dot and dash, so two operators keying at ~15 wpm push well over 5 events/s
+ * and 200 slots is about 40 seconds of history. The Morse panel rebuilds the
+ * received text from this rail, so past that point its headline text silently
+ * loses its oldest letters.
+ *
+ * 2000 buys ~7 minutes at that rate and costs a few hundred kB. It is a
+ * MITIGATION, not the fix: any rate eventually outruns any bound. The real
+ * fix is for a panel that needs a transcript to accumulate one as events
+ * arrive, instead of re-deriving it from a window that is allowed to forget.
+ */
+const EVENT_CAPACITY = 2000
 
 function channelKey(nodeId: number, channel: string): string {
   return `${nodeId}:${channel}`
@@ -35,6 +51,8 @@ interface StreamState {
   events: EventEntry[]
   ingestTelemetry: (nodeId: number, channel: string, point: TelemetryPoint) => void
   getSeries: (nodeId: number, channel: string) => TelemetryPoint[]
+  /** The last `n` samples only — see TelemetryRingBuffer.recent(). */
+  getRecent: (nodeId: number, channel: string, n: number) => TelemetryPoint[]
   getLatest: (nodeId: number, channel: string) => TelemetryPoint | undefined
   ingestLog: (entry: LogEntry) => void
   ingestEvent: (entry: EventEntry) => void
@@ -69,6 +87,9 @@ export const useStreamStore = create<StreamState>((set, get) => ({
 
   getSeries: (nodeId, channel) => {
     return get().buffers.get(channelKey(nodeId, channel))?.toArray() ?? []
+  },
+  getRecent: (nodeId, channel, n) => {
+    return get().buffers.get(channelKey(nodeId, channel))?.recent(n) ?? []
   },
 
   getLatest: (nodeId, channel) => {

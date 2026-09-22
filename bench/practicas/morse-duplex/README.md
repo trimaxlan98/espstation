@@ -231,6 +231,12 @@ Add-Content cmd_p1.txt "p170"                   # Windows
 Add-Content cmd_p1.txt "#MARK INICIO TANDA 1"
 ```
 
+En POSIX esa ruta tiene que ser una **FIFO** (la crea el propio capturador). Si
+ahí ya hay un fichero normal, el capturador **para** en vez de abrirlo: lo que
+hubiera dentro se le habría mandado entero a la placa en la primera lectura, y
+`echo "r" > ruta` (que trunca) habría dejado el canal mudo sin decirlo. Bórralo o
+usa otra ruta.
+
 ### Dashboard en vivo
 
 `../clave-morse/herramientas/puente_serie.py` aprendió el formato de esta
@@ -555,4 +561,6 @@ buenos aquí**, con dos operadores nuevos.
 | Un puerto USB deja de dar COM | falta el driver CP210x; ver `../clave-morse/INFORME.md` §9 |
 | El puerto está ocupado | en Windows lo abre un solo proceso: cierra el monitor serie del IDE |
 | `# rechazado: comando desconocido` | dedazo; los umbrales del eco llevan `t` delante (`tp170`) |
+| `# rechazado: k<ms> admite 0..200` tras escribir `k` | falta el número: `<ms>` es obligatorio y todo cifras. **No** se interpreta como `k0` |
+| El eco `TX` no decodifica el primer toque tras un `e` | se apagó el eco con la llave cerrada: al encenderlo se resincroniza y descarta lo que quedaba a medias |
 | Las letras salen mal pero los pulsos cuadran | umbral mal, enlace bien: `v` y mira `# RX pulso_ms=` |

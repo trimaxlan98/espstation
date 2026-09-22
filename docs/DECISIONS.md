@@ -305,15 +305,21 @@ adapter anchors on the last stamp and extrapolates with the station's clock
 between anchors; they are not the board's own millisecond clock and must not
 be read as such. The real-firmware path, where all three limitations
 disappear, is `firmware/components/esps_morse/`, which is now complete and
-running on both bench boards (see D-23 and D-24). The adapter stays: a board
+running on both bench boards (see D-23). The adapter stays: a board
 with the Arduino sketch is still a legitimate way to run the practice.
 
-## D-23 — `esps_morse` ships its pure C11 half only, and the host gate is runnable without `make`
+## D-23 — `esps_morse` landed its pure C11 half first, and the host gate is runnable without `make`
 `firmware/components/esps_morse/` is the table, the pulse/silence state machine
 and the key debounce: pure C11 over caller-owned state, no allocation, no
 globals, no ESP-IDF, compiled verbatim by `test/host/` under `-Werror` with
-ASan+UBSan. There is deliberately **no** `esps_morse.c` — no GPIO setup, no
-edge ISR, no FreeRTOS task, none of what `esps_dio.c` is for the digital link.
+ASan+UBSan. It shipped **without** `esps_morse.c` — no GPIO setup, no edge ISR,
+no FreeRTOS task, none of what `esps_dio.c` is for the digital link.
+*(Superseded 2026-09-22: `src/esps_morse.c` now exists — pins, two edge ISRs and
+a 1 ms task — and `[env:esp32dev_morse]` builds and runs on both bench boards.
+What survives is the ordering rule below: the pure half is gated on the host
+first, and the ESP-IDF layer is only written once someone can compile and run
+it. That layer is not in CI: `.github/workflows/ci.yml` builds `esp32dev`,
+`esp32c3`, `esp32dev_dio_a` and `esp32dev_dio_b`, not `esp32dev_morse`.)*
 The decoder reports events through a caller-supplied array (`esps_morse_edge`,
 `esps_morse_tick`) rather than a callback, and `tick()` may write two of them
 (letter then word) in that fixed order. Alongside the Makefile there is now
@@ -330,11 +336,82 @@ a component that must stay decidable on a host. `run_tests.py` exists because
 `make` is not present on a stock Windows install, and a contributor who cannot
 run the gate will not run it; the Makefile stays the reference and CI keeps
 using it, and the runner warns when the two file lists have drifted.
-**Consequence:** the Morse boards on the bench still run the Arduino sketch and
-reach the station through the gateway adapter (D-22), with the three
-limitations named there. `esps_morse` is a third implementation of the same
-link — sketch, C11, Python — so the golden vectors in SPEC-DUPLEX.md are now
-load-bearing across three languages: change one, change all of them and the
-SPEC in the same commit. The `tick()` contract needs `max >= 2`; with `max ==
+**Consequence:** a bench board running the Arduino sketch still reaches the
+station through the gateway adapter (D-22), with the three limitations named
+there; a board flashed with `esp32dev_morse` is an ordinary ENLP node and has
+none of them. `esps_morse` is a third implementation of the same link — sketch,
+C11, Python — so the golden vectors are load-bearing across three languages:
+change one, change all of them and the SPEC in the same commit. The vectors are
+**not** in SPEC-DUPLEX.md, which fixes pins, wiring, output format, commands and
+counters; they live in the suites. The `SOS` vector is literally identical in
+`firmware/test/host/test_morse_decode.c` and `gateway/tests/test_morse_link.py`
+(same 100/400/150/900 ms timings, same event list, same counters); the sketch's
+`bench/.../host_duplex.cpp` covers the same cases with its own timings and
+compares printed text, so that pair is held together by behaviour, not by
+numbers. The strongest shared anchor is the recorded evidence: the Python suite
+re-decodes `tanda_k40_l600_*.log` whole and the C suite replays two excerpts of
+the same log. The `tick()` contract needs `max >= 2`; with `max ==
 1` a gap that closes both a letter and a word reports the letter and loses the
 word, which is documented at the declaration and is not detected at runtime.
+
+## D-24 — the Morse wave and the cadence are rebuilt from events, and the `.ino` files ship inside the app
+The Morse section draws a live square wave, with a cadence readout under it, — 1 while a key is closed, 0 at
+rest, TX and RX on one shared time axis — and it is built from the **event**
+rail (`morse.symbol`, `morse.letter`, `morse.word`, `morse.filtered`), not
+from the `morse.tx` / `morse.rx` NDB channels that carry the line level. The
+two level strips that used to sit there are gone, along with their CSS. A new
+**Sketches** section hands out `transceptor.ino`, `transmisor.ino` and
+`receptor.ino`, bundled into the renderer at build time with Vite's `?raw`
+from `bench/practicas/`, with a copy-to-clipboard and a save that creates the
+`<stem>/<stem>.ino` folder the Arduino IDE requires.
+**Why:** the level channels look like the right source and are not.
+`main.c`'s `telemetry_task` publishes every channel once a second, so the NDB
+declares all eight Morse channels at 1 Hz — the firmware's own table comment
+records the measurement that settled it, *a whole SOS went by with `morse.tx`
+never once sampled high*. A dot lasts ~100 ms, so a strip fed from those
+samples is empty almost always and reads as "nothing is arriving". The events
+carry the duration the board measured on the edge that ended the pulse, so
+`[ts - ms, ts]` reconstructs the pulse exactly, to the same millisecond the
+practice compares between the two ends. For the sketches, reading
+`bench/practicas/...` off disk at runtime would work on the development
+machine and show an empty list on every installed copy — failing only where
+nobody is watching — and a second copy checked into `desktop/` would drift
+from the file the boards are flashed from the first time a timing bug was
+fixed on the bench. The save dialog asks for a **folder** because the Arduino
+IDE will not open `foo.ino` outside a folder called `foo`, and that stumble
+happens at the one step where the user has already left this app.
+**Consequence:** the wave cannot show a pulse that is still in progress —
+until the key is released the board does not know how long it was — so what
+grows on screen while a key is held is the silence, and the live "your
+silence" readout exists for exactly the gap-timing the thresholds are about.
+The drawing is laid out once in absolute time units and animated by writing
+one `transform` (and that one text node) straight to the DOM from a frame
+loop; React re-renders only when an event lands, because re-rendering a few
+hundred SVG nodes at 60 Hz to move a handful of edges is the trap the level
+strips already fell into once. `EVENT_CAPACITY` (2000) now bounds the wave's
+history as well as the transcript's, and the lanes trim to 60 s / 400 pulses
+on top of it. The bundled sketch text is only as fresh as the last
+`electron-vite build`: change a sketch and the installed app keeps handing out
+the old one until it is rebuilt — `Sketches.test.tsx` asserts the real source
+arrived, so a broken `?raw` alias fails the suite instead of shipping empty
+files, but staleness is not something a test can catch. `sketch:save` and
+`sketch:copy` are the first additions to the preload bridge since S4; the file
+name is whitelisted to a bare `[A-Za-z0-9_-]+\.ino` in main, so no argument
+from the renderer can aim the write outside the folder the user picked.
+The cadence panel reads the **TX** lane (the operator's own hand as their board
+echoed it) and reports the dot and dash spreads, the empty band between them
+and the two gap populations. It suggests a midpoint for `punto_raya_ms` only
+when the band is real and positive, always worded "on these N symbols", and it
+never suggests a `letra_ms` at all: the bench session that tried found the two
+gap populations OVERLAP, and when they do no threshold separates them — so the
+overlap is reported as an overlap. That refusal is the decision, not an
+omission; an earlier attempt in this project derived an `l` value from one
+session's rhythm and it was wrong.
+The pair the integrity cross-check compares is taken from the stations that are
+**online** when exactly two of them are, and from the whole set otherwise. A
+gateway registry keeps every node it has ever seen, so after a few sessions the
+section legitimately holds half a dozen Morse stations of which two are plugged
+in — and the earlier rule, which looked at the raw count, refused the
+cross-check on a bench that had exactly one pair keying. Offline stations are
+still drawn, in their own right and below the live ones, because their last
+reported counters are the record of a finished session.

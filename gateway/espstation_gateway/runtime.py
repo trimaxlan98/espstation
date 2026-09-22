@@ -105,9 +105,18 @@ class GatewayRuntime:
                 await t
             except (asyncio.CancelledError, Exception):
                 pass
-        for t in self._morse_tasks.values():
-            t.cancel()
+        morse_tasks = list(self._morse_tasks.values())
         self._morse_tasks = {}
+        for t in morse_tasks:
+            t.cancel()
+        for t in morse_tasks:
+            # Awaiting is what stops "Task was destroyed but it is pending"
+            # and, more usefully, guarantees the poll is not mid-write to a
+            # port that link.stop() is about to close underneath it.
+            try:
+                await t
+            except (asyncio.CancelledError, Exception):
+                pass
         self._tasks = []
         for link in list(self.links.values()):
             await link.stop()
@@ -134,6 +143,31 @@ class GatewayRuntime:
         link = Link(self._new_link_id("serial"), "serial", transport, StreamingDecoder(), self.registry)
         return await self._start_link(link, {"path": path, "baudrate": baudrate})
 
+    def _morse_node_id(self, source: str) -> int:
+        """Node id for a Morse adapter, derived from its source path.
+
+        0x4D00 is 'M' in the high byte, so one of these is recognisable in a
+        frame dump without looking anything up, and deriving the low byte
+        from the path is what makes the same board keep its identity across
+        reconnects -- the sketch never announces a MAC, so the path is the
+        only identity there is.
+
+        Only 8 bits of it survive, though, so two different sources CAN land
+        on the same id (a bench board and a replay capture, or two ports
+        whose names happen to sum alike). Two links sharing a node id merge
+        into one node downstream and their TELEM_ACKs cross, so a collision
+        with a link that is still attached is stepped over. A reconnect to a
+        path nobody else holds still gets its own stable id.
+        """
+        base = 0x4D00 | (sum(source.encode()) & 0xFF)
+        taken = {link.meta.get("node_id") for link in self.links.values()}
+        node_id = base
+        for _ in range(256):
+            if node_id not in taken:
+                return node_id
+            node_id = 0x4D00 | ((node_id + 1) & 0xFF)
+        return base
+
     async def attach_morse_sketch(self, path: str, baudrate: int = 115200,
                                   *, label: str = "", verbose: bool = True) -> Link:
         """Attach a board running the morse-duplex bench sketch.
@@ -147,9 +181,7 @@ class GatewayRuntime:
         identity across reconnects; that is the only identity available, since
         the sketch never announces a MAC.
         """
-        # 0x4D00 is 'M' in the high byte: a Morse adapter node is recognisable
-        # in a frame dump without looking anything up.
-        node_id = 0x4D00 | (sum(path.encode()) & 0xFF)
+        node_id = self._morse_node_id(path)
         transport = MorseSketchTransport(SerialTransport(path, baudrate))
         decoder = MorseSketchDecoder(node_id, label=label or f"morse {path}")
         link = Link(self._new_link_id("morse"), "morse", transport, decoder, self.registry)
@@ -157,9 +189,16 @@ class GatewayRuntime:
             link, {"path": path, "baudrate": baudrate, "node_id": node_id,
                    "adapter": "morse-duplex-sketch", "commands": False,
                    "primes": "r/v"})
-        self._morse_tasks[link.id] = asyncio.create_task(
+        task = asyncio.create_task(
             self._morse_poll(link, transport, decoder, verbose=verbose),
             name=f"morse-poll-{link.id}")
+        self._morse_tasks[link.id] = task
+        # A poll that ends on its own (the port died, the link went down) must
+        # not leave a finished Task in the dict: attach/detach cycles would
+        # accumulate them for the lifetime of the gateway.
+        task.add_done_callback(
+            lambda t, lid=link.id: self._morse_tasks.pop(lid, None)
+            if self._morse_tasks.get(lid) is t else None)
         return link
 
     async def attach_morse_replay(self, path: str, *, label: str = "",
@@ -173,7 +212,7 @@ class GatewayRuntime:
         the real path rather than a mock of it, a demo that works here is
         evidence the live path works too.
         """
-        node_id = 0x4D00 | (sum(path.encode()) & 0xFF)
+        node_id = self._morse_node_id(path)
         transport = MorseSketchTransport(MorseLogReplayTransport(path, speed=speed, loop=loop))
         decoder = MorseSketchDecoder(node_id, label=label or f"replay {path}")
         link = Link(self._new_link_id("morse"), "morse", transport, decoder, self.registry)
@@ -193,16 +232,39 @@ class GatewayRuntime:
         and only if the board says verbose is off. Neither is an operator
         command: those still cannot reach the board (morse_sketch.send()).
         """
+        primed = not verbose
+        # A board that never answers must not be polled at the priming
+        # cadence forever: ~10 s of asking, then settle to period_s and let
+        # the empty channels say what they say.
+        tries_left = 12
         try:
             await asyncio.sleep(1.2)          # let the boot banner finish
             await transport.write_text("r\n")
-            await asyncio.sleep(0.8)
-            if verbose and decoder.verbose == 0:
-                await transport.write_text("v\n")
-                await asyncio.sleep(0.3)
-                await transport.write_text("r\n")
-            while link.connected:
-                await asyncio.sleep(period_s)
+            while True:
+                await asyncio.sleep(period_s if primed else 0.8)
+                # Re-checked every cycle rather than exactly once, 0.8 s after
+                # attach: if the board had not answered `r` yet -- a slow boot,
+                # a reply split across reads, a USB hub that buffers --
+                # `decoder.verbose` was still None, the single early check gave
+                # up for the whole session and morse.pulse_ms / morse.gap_ms
+                # stayed empty forever, which is the exact failure D-22 says
+                # `v` exists to prevent. Still at most one `v` per attach.
+                if not primed:
+                    tries_left -= 1
+                    if tries_left <= 0:
+                        primed = True
+                        log.warning(
+                            "morse link %s: the board never reported its mode, "
+                            "so verbose was not primed; morse.pulse_ms and "
+                            "morse.gap_ms will stay empty for this session",
+                            link.id)
+                if not primed and decoder.verbose is not None:
+                    primed = True
+                    if decoder.verbose == 0:
+                        await transport.write_text("v\n")
+                        await asyncio.sleep(0.3)
+                if not link.connected:
+                    return
                 await transport.write_text("r\n")
         except asyncio.CancelledError:
             raise
@@ -279,6 +341,18 @@ class GatewayRuntime:
         if event.kind == "error":
             link.connected = False
             await self._publish("link", {"id": link.id, "error": str(event.payload)})
+            return
+        if event.kind == "closed":
+            # The medium ended cleanly (a replayed capture ran out, a peer
+            # closed). Not an error, but the link is done: say so, or the app
+            # keeps a node online that can never produce another sample.
+            link.connected = False
+            await self._publish("link", self.link_summary(link))
+            for node_id, lid in self.node_link.items():
+                if lid == link.id:
+                    summary = self.node_summary(node_id)
+                    if summary is not None:
+                        await self._publish("node", summary)
             return
         frame: Frame = event.payload  # event.kind == "frame"
         self.node_link[frame.node] = link.id

@@ -306,16 +306,46 @@ static void ponerContadoresACero() {
   resumen_crudos = resumen_aceptados = resumen_rx = 0;
 }
 
+// Con el eco apagado, atenderLlave() deja de alimentar al decodificador TX, que
+// se queda congelado en el nivel que tuviera. Al reencenderlo puede estar DESFASADO
+// respecto a la llave, y entonces la siguiente bajada mide contra un t_subida_us
+// de hace minutos: sale una raya falsa de varios segundos y una letra inventada.
+// Solo se resincroniza si de verdad se perdio algun flanco (los niveles no
+// coinciden); si coinciden, no se toca nada y no se pierde ningun simbolo.
+static void resincronizarEco() {
+  if (tx.nivel_ant == llave_estable) return;   // no se perdio ningun flanco
+  tx.nivel_ant = llave_estable;
+  tx.en_pulso = false;                         // el pulso a medias ya no es medible
+  tx.midiendo_silencio = false;
+  tx.letra_desde_palabra = false;
+  tx.n_simbolo = 0;                            // la letra a medias mezclaria dos manos
+  tx.desbordado = false;
+}
+
+// <cmd><ms> necesita AL MENOS UNA CIFRA. Sin esto atol("") vale 0, que es un
+// valor VALIDO para k y para d: un dedazo como "k" o "dx" apagaba el antirrebote
+// en silencio, que es justo lo que el SPEC quiere que no pase inadvertido.
+static bool argNumerico(const char *s) {
+  if (*s == '-' || *s == '+') s++;
+  if (!*s) return false;
+  for (; *s; s++) if (*s < '0' || *s > '9') return false;
+  return true;
+}
+
 static void ejecutarComando(const char *cmd) {
   // Primero los comandos globales: no llevan prefijo de sentido.
   switch (cmd[0]) {
     case 'r': imprimirEstado(); return;
     case 'c': ponerContadoresACero(); Serial.println("# contadores a cero"); return;
     case 'v': verbose = !verbose; imprimirEstado(); return;
-    case 'e': eco_local = !eco_local; imprimirEstado(); return;
+    case 'e':
+      eco_local = !eco_local;
+      if (eco_local) resincronizarEco();       // al volver, ponerse al dia con la llave
+      imprimirEstado();
+      return;
     case 'k': {
       long vk = atol(cmd + 1);
-      if (vk < 0 || vk > DEBOUNCE_MAX_MS) {
+      if (!argNumerico(cmd + 1) || vk < 0 || vk > DEBOUNCE_MAX_MS) {
         Serial.println("# rechazado: k<ms> admite 0..200");
       } else {
         llave_debounce_ms = (uint32_t)vk;
@@ -334,10 +364,10 @@ static void ejecutarComando(const char *cmd) {
   long v = atol(p + 1);
 
   if (k == 'd') {
-    if (v < 0 || v > DEBOUNCE_MAX_MS) { Serial.println("# rechazado: d<ms> admite 0..200"); return; }
+    if (!argNumerico(p + 1) || v < 0 || v > DEBOUNCE_MAX_MS) { Serial.println("# rechazado: d<ms> admite 0..200"); return; }
     d->debounce_ms = (uint32_t)v;
   } else if (k == 'p' || k == 'l' || k == 'w') {
-    if (v < 1 || v > 60000) { Serial.println("# rechazado: admite 1..60000 ms"); return; }
+    if (!argNumerico(p + 1) || v < 1 || v > 60000) { Serial.println("# rechazado: admite 1..60000 ms"); return; }
     if (k == 'l' && (uint32_t)v >= d->palabra_ms) {
       Serial.println("# rechazado: letra_ms debe ser menor que palabra_ms");
       return;

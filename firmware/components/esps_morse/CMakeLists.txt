@@ -15,7 +15,15 @@
 # There is no LDFRAGMENTS here, unlike esps_dio: its ISR runs the frame
 # decoder and CRC, so those objects must live in IRAM. These ISRs only read
 # the clock, read a pin and write a ring slot — they call nothing from the
-# pure half — so IRAM_ATTR on the handlers is the whole requirement.
+# pure half — so IRAM_ATTR on the handlers, plus every callee being IRAM or
+# inline, is the whole requirement.
+#
+# `hal` and `soc` are here for exactly that last clause: the handlers read the
+# pin with gpio_ll_get_level(), a static inline register access, because
+# gpio_get_level() is an out-of-line function that this build leaves in flash
+# (CONFIG_GPIO_CTRL_FUNC_IN_IRAM is not set) and calling it from a handler
+# registered with ESP_INTR_FLAG_IRAM panics when the cache is off. Same
+# reasoning, same two components, as esps_dio.
 #
 # TODO(S3): the thresholds belong in the experiment spec delivered by EXP_SET
 # and persisted to NVS, not in build-time defaults — the same note esps_dio
@@ -24,4 +32,4 @@ idf_component_register(
     SRCS "src/table.c" "src/decode.c" "src/key.c"
          "src/esps_morse.c"
     INCLUDE_DIRS "include"
-    PRIV_REQUIRES esps_core driver esp_timer freertos log)
+    PRIV_REQUIRES esps_core driver esp_timer freertos hal soc log)

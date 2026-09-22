@@ -194,6 +194,42 @@ int main(int argc, char **argv) {
   cmd("l700");
   limpiar(); cmd("z9"); check("comando desconocido avisa", tiene("# rechazado: comando desconocido z9"));
 
+  // 12b. <cmd> SIN cifras no puede valer 0: 'k' y 'd' apagarian el antirrebote
+  //      en silencio (atol("") == 0, que es un valor valido para los dos).
+  cmd("k15"); cmd("d15"); cmd("td15");
+  limpiar(); cmd("k");   check("'k' a secas rechazado (no apaga el antirrebote)", tiene("# rechazado: k<ms>"));
+  limpiar(); cmd("kx");  check("'kx' rechazado", tiene("# rechazado: k<ms>"));
+  limpiar(); cmd("d");   check("'d' a secas rechazado", tiene("# rechazado: d<ms>"));
+  limpiar(); cmd("td");  check("'td' a secas rechazado", tiene("# rechazado: d<ms>"));
+  limpiar(); cmd("p");   check("'p' a secas rechazado", tiene("# rechazado: admite 1..60000"));
+  limpiar(); cmd("r");
+  check("tras los rechazos, k y d siguen en 15",
+        tiene("# llave debounce_ms=15") && tiene("# umbrales RX punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15")
+        && tiene("# umbrales TX punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15"));
+
+  // 12c. Apagar el eco CON LA LLAVE CERRADA deja al decodificador TX desfasado:
+  //      al reencenderlo, el primer toque normal media contra el t_subida_us de
+  //      hace minutos y salia una raya falsa. Ahora se resincroniza.
+  reposo(); cmd("c"); limpiar();
+  llave(1); avanzar(30);          // subida aceptada: el eco esta dentro de un pulso
+  cmd("e");                       // eco OFF con la llave cerrada
+  avanzar(100); llave(0); avanzar(400);     // se suelta: el eco no lo ve
+  cmd("e");                       // eco ON otra vez, con la llave abierta
+  limpiar();
+  tx_tocar(100); avanzar(1000);   // un toque normal de 100 ms = punto = E
+  check("eco: tras apagarlo con la llave cerrada, el toque siguiente es un punto",
+        sin_diag() == "TX .\nTX [letra: E] [bin: 01000101]\n");
+  limpiar(); cmd("r");
+  check("eco: resincronizado, 1 punto y 0 rayas", tiene("contadores TX puntos=1 rayas=0"));
+
+  // 12d. Apagar y encender el eco SIN perder ningun flanco no descarta nada:
+  //      la pulsacion en curso se sigue midiendo entera.
+  reposo(); cmd("c"); limpiar();
+  llave(1); avanzar(30); cmd("e"); cmd("e"); avanzar(400); llave(0); avanzar(1200);
+  check("eco: apagar/encender sin perder flancos conserva la raya en curso",
+        tiene("TX -") && tiene("TX [letra: T]"));
+  reposo(); cmd("c");
+
   // 13. Niveles repetidos (la ISR leyo la linea cuando ya habia vuelto)
   cmd("c"); limpiar();
   T += 1000; g_vt_us = T; GPIO.in = MASK_RX; g_isr(); g_isr(); loop();

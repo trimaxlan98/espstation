@@ -198,7 +198,12 @@
   gap: var(--space-4);
 }
 
-/* --- Morse (bench/practicas/morse-duplex) ------------------------------- */
+/* --- Morse (bench/practicas/morse-duplex) -------------------------------
+   Token names are the ones in tokens.css. This block used to reach for
+   --muted / --line / --bg / --ok / --warn, none of which exist: the border
+   and the background of the level strip were dropped by the parser, and the
+   verdict fell back to its hard-coded green, which is 1.7:1 on the light
+   theme's white. */
 .morse-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
@@ -210,8 +215,8 @@
    biggest thing on the card. Monospace because the spaces between words
    carry meaning here. */
 .morse-text {
-  font-family: ui-monospace, Menlo, Consolas, monospace;
-  font-size: 26px;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl-size);
   font-weight: 700;
   letter-spacing: 0.12em;
   min-height: 38px;
@@ -219,22 +224,9 @@
   margin-bottom: 12px;
 }
 
-.morse-strips { display: grid; gap: 8px; margin-bottom: 12px; }
-.morse-strips__label { font-size: 12px; color: var(--muted); }
-
-.morse-level {
-  position: relative;
-  height: 18px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  overflow: hidden;
-  background: var(--bg);
-}
-.morse-level--empty { opacity: 0.5; }
-.morse-level__on,
-.morse-level__off { position: absolute; top: 0; bottom: 0; }
-.morse-level__on { background: var(--accent, #3ddc84); }
-.morse-level__off { background: transparent; }
+/* The .morse-level / .morse-strips rules that used to be here went with the
+   level strips they styled: `morse.tx` and `morse.rx` are published at 1 Hz,
+   so the strips could not show a 100 ms dot. The wave below replaced them. */
 
 .morse-stats {
   display: grid;
@@ -242,6 +234,251 @@
   gap: 8px;
 }
 
-.morse-ok { color: var(--ok, #3ddc84); }
-.morse-warn { color: var(--warn, #ffb86b); }
+.morse-verdict { color: var(--text-primary); }
+.morse-ok { color: var(--ok-fg); }
+.morse-warn { color: var(--warn-fg); }
 .morse-note { opacity: 0.75; margin-top: 8px; }
+
+/* --- Morse: the square wave -----------------------------------------------
+   The drawing brought over from bench/practicas/clave-morse/visor (senalSVG)
+   and made live. Every colour is a token: the fill says dot or dash, but so
+   does the glyph above the pulse and so does the <title> on it, because a
+   reading that only works in colour is not a reading. */
+.morse-wave {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.morse-wave svg { display: block; width: 100%; height: auto; }
+
+.morse-wave__rail { stroke: var(--border-default); stroke-width: 1.2; }
+.morse-wave__rail--high { stroke-dasharray: 2 5; }
+.morse-wave__lane-label {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  fill: var(--text-muted);
+}
+
+/* The outline is the signal itself, so it is the one thing drawn in the
+   foreground colour and never in an accent. */
+.morse-wave__trace {
+  fill: none;
+  stroke: var(--text-primary);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.morse-wave__fill { opacity: 0.22; }
+.morse-wave__fill--dot, .morse-wave__glyph--dot { fill: var(--info-fg); }
+.morse-wave__fill--dash, .morse-wave__glyph--dash { fill: var(--accent); }
+
+.morse-wave__ms {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-anchor: middle;
+  fill: var(--text-muted);
+}
+
+.morse-wave__word { stroke: var(--warn-fg); stroke-width: 1.5; stroke-dasharray: 4 4; }
+.morse-wave__filtered line { stroke: var(--crit-fg); stroke-width: 2; }
+
+.morse-wave__letter path { fill: none; stroke: var(--ok-fg); stroke-width: 2; }
+.morse-wave__letter text { fill: var(--ok-fg); }
+.morse-wave__letter--bad path { stroke: var(--crit-fg); }
+.morse-wave__letter--bad text { fill: var(--crit-fg); }
+.morse-wave__letter-char {
+  font-family: var(--font-mono);
+  font-size: 19px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+.morse-wave__letter-code { font-family: var(--font-mono); font-size: 10px; text-anchor: middle; }
+
+/* The right edge is "now": the wave slides under it. */
+.morse-wave__now { stroke: var(--accent); stroke-width: 1.5; opacity: 0.8; }
+.morse-wave__gap {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-anchor: end;
+  fill: var(--text-secondary);
+}
+.morse-wave__idle {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  text-anchor: middle;
+  fill: var(--text-muted);
+}
+
+.morse-wave-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: var(--text-xs-size);
+  color: var(--text-muted);
+}
+.morse-wave-bar__spacer { flex: 1; }
+
+/* --- Sketches ------------------------------------------------------------
+   The .ino files on their way to the Arduino IDE. No live data on this
+   screen, so nothing here has a status colour: it is a reference page. */
+.sketch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.sketch-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+  font-size: var(--text-xs-size);
+  color: var(--text-muted);
+}
+.sketch-path {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs-size);
+  color: var(--text-secondary);
+  word-break: break-all;
+}
+.sketch-lines { white-space: nowrap; }
+
+.sketch-pins {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm-size);
+  margin-bottom: 10px;
+}
+.sketch-pins caption {
+  text-align: left;
+  font-size: var(--text-xs-size);
+  color: var(--text-muted);
+  padding-bottom: 4px;
+}
+.sketch-pins th,
+.sketch-pins td {
+  text-align: left;
+  vertical-align: top;
+  padding: 3px 8px 3px 0;
+  border-top: 1px solid var(--border-subtle);
+}
+.sketch-pins th {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.sketch-pins td { color: var(--text-secondary); }
+
+.sketch-folder-note { margin: 0 0 10px; }
+.sketch-folder-note code { font-family: var(--font-mono); }
+
+.sketch-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: var(--text-sm-size);
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+}
+.sketch-toggle:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+/* Scrollable and focusable: a 470-line sketch must not stretch the card, and
+   a pane that scrolls has to be reachable from the keyboard. */
+.sketch-source {
+  margin: 10px 0 0;
+  max-height: 340px;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs-size);
+  line-height: 1.5;
+  white-space: pre;
+  color: var(--text-secondary);
+}
+.sketch-source:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+
+.sketch-reqs {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin: 0;
+  font-size: var(--text-sm-size);
+}
+.sketch-reqs dt { color: var(--text-muted); }
+.sketch-reqs dd { margin: 0; color: var(--text-secondary); }
+.sketch-reqs code { font-family: var(--font-mono); word-break: break-all; }
+
+/* --- Morse: cadence ------------------------------------------------------
+   The numbers the operator steers by. Every verdict is a sentence before it
+   is a colour: "comfortable", "fragile" and "overlap" are written out. */
+.morse-cad { margin-bottom: 12px; }
+.morse-cad__empty { margin: 0 0 12px; }
+
+.morse-cad__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.morse-cad__title {
+  font-size: var(--text-xs-size);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.morse-cad__wpm {
+  font-family: var(--font-mono);
+  font-size: var(--text-lg-size);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.morse-cad__bands { display: block; width: 100%; height: auto; margin-bottom: 6px; }
+.morse-cad__axis { stroke: var(--border-default); stroke-width: 1.2; }
+.morse-cad__box rect { opacity: 0.35; }
+.morse-cad__box line { stroke: var(--text-primary); stroke-width: 2; }
+.morse-cad__box--dot rect { fill: var(--info-fg); }
+.morse-cad__box--dash rect { fill: var(--accent); }
+/* The empty band is the point of the strip, so it is drawn, not implied. */
+.morse-cad__gap { fill: var(--ok-fg); opacity: 0.14; }
+.morse-cad__tick {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  text-anchor: middle;
+  fill: var(--text-muted);
+}
+
+.morse-cad__rows {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 12px;
+  margin: 0 0 8px;
+  font-size: var(--text-sm-size);
+}
+.morse-cad__rows dt { color: var(--text-muted); }
+.morse-cad__rows dd { margin: 0; color: var(--text-secondary); font-family: var(--font-mono); }
+.morse-cad__range { opacity: 0.8; }
+.morse-cad__none { opacity: 0.6; }
+
+.morse-cad__verdict {
+  margin: 0 0 6px;
+  font-size: var(--text-sm-size);
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+.morse-cad__verdict--ok strong { color: var(--ok-fg); }
+.morse-cad__verdict--warn strong { color: var(--warn-fg); }
+.morse-cad__verdict--bad strong { color: var(--crit-fg); }

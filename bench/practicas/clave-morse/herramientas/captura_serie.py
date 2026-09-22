@@ -33,10 +33,13 @@ NOTA: la captura serie de las dos placas mostro en algunas lineas bloques de 64 
 que pisan el principio de la linea (causa no encontrada). Ver INFORME.md.
 """
 import os
+import stat
 import sys
 import time
 
 import serial
+
+MAX_BUF_CANAL = 4096   # una linea suelta de comando no llega ni a 100 bytes
 
 
 class CanalFifo:
@@ -45,6 +48,16 @@ class CanalFifo:
     def __init__(self, ruta):
         if not os.path.exists(ruta):
             os.mkfifo(ruta)
+        elif not stat.S_ISFIFO(os.stat(ruta).st_mode):
+            # Un fichero normal NO sirve de canal aunque os.open() lo abra igual:
+            #  1. la primera lectura reenviaria a la placa TODO lo que hubiera
+            #     dentro, o sea los comandos de la sesion anterior (la rama de
+            #     Windows trunca el fichero justo por este motivo);
+            #  2. el uso documentado es `echo "r" > ruta`, que TRUNCA; el
+            #     descriptor se queda pasado del final del fichero y el canal
+            #     enmudece para siempre sin avisar.
+            # Mejor parar y que el operador decida que hacer con ese fichero.
+            sys.exit(f"{ruta} ya existe y NO es una FIFO. Borralo o usa otra ruta.")
         self.fd = os.open(ruta, os.O_RDWR | os.O_NONBLOCK)
         self.buf = b""
 
@@ -53,6 +66,8 @@ class CanalFifo:
             self.buf += os.read(self.fd, 256)
         except BlockingIOError:
             pass
+        if len(self.buf) > MAX_BUF_CANAL:   # escritor que nunca cierra la linea
+            self.buf = b""
         out = []
         while b"\n" in self.buf:
             cmd, self.buf = self.buf.split(b"\n", 1)
@@ -95,20 +110,33 @@ def main(argv):
     puerto, salida, canal_ruta = argv[1:4]
     canal = CanalFifo(canal_ruta) if hasattr(os, "mkfifo") else CanalFichero(canal_ruta)
 
-    with serial.Serial(puerto, 115200, timeout=0.2) as s, open(salida, "wb", buffering=0) as f:
+    try:
+        puerto_abierto = serial.Serial(puerto, 115200, timeout=0.2)
+    except serial.SerialException as e:
+        sys.exit(f"no puedo abrir {puerto}: {e}")
+
+    with puerto_abierto as s, open(salida, "wb", buffering=0) as f:
         t0 = time.time()
         ts = lambda: f"{time.time() - t0:9.3f} ".encode()
-        while True:
-            linea = s.readline()
-            if linea:
-                f.write(ts() + linea)
-            for cmd in canal.leer():
-                cmd = cmd.strip()
-                if cmd.startswith(b"#MARK"):
-                    f.write(ts() + cmd + b"\n")
-                elif cmd:
-                    s.write(cmd + b"\n")
-                    f.write(ts() + b">>> " + cmd + b"\n")
+        try:
+            while True:
+                linea = s.readline()
+                if linea:
+                    f.write(ts() + linea)
+                for cmd in canal.leer():
+                    cmd = cmd.strip()
+                    if cmd.startswith(b"#MARK"):
+                        f.write(ts() + cmd + b"\n")
+                    elif cmd:
+                        s.write(cmd + b"\n")
+                        f.write(ts() + b">>> " + cmd + b"\n")
+        except serial.SerialException as e:
+            # El puerto se fue a media tanda (cable, reset de la placa, driver).
+            # Queda anotado DENTRO del log: la evidencia explica por que se corto
+            # en vez de acabar sin mas en mitad de una linea.
+            f.write(ts() + b"#MARK CAPTURA INTERRUMPIDA: "
+                    + str(e).encode("utf-8", "replace") + b"\n")
+            sys.exit(f"puerto perdido a media captura: {e}")
 
 
 if __name__ == "__main__":

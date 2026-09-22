@@ -337,12 +337,23 @@ Decisión de diseño y sus consecuencias: [`docs/DECISIONS.md`](docs/DECISIONS.m
 - [x] **Verificado contra las dos placas reales**: aparecen como nodos
       `online`, declaran los nueve canales y la telemetría fluye al teclear
       (`morse.symbols=9`, `pulse_ms`, `gap_ms`, `tx`/`rx`, `bounces`).
+- [x] La **cadencia** medida de la propia mano: bandas de punto y raya, el
+      vacío entre ellas y el solapamiento de huecos dicho como solapamiento.
+- [x] La **onda cuadrada** del visor de `clave-morse` vuelve, en vivo y dentro
+      de la app, reconstruida de los eventos y no de los canales de nivel
+      (D-24). Sustituye a las tiras de nivel, que a 1 Hz no podían ver un punto.
+- [x] Sección **Sketches**: los tres `.ino` empaquetados en el bundle, con
+      copiar y «guardar carpeta de sketch», y el requisito de librerías
+      contrastado contra los `#include` (no hace falta ninguna).
+- [ ] **Sin verificar en hardware**: la onda no se ha visto todavía con las dos
+      placas tecleando. Lo que hay son 54 pruebas y una compilación limpia.
 
 Salidas reales:
 
 ```
-gateway:  321 passed                      (eran 285; +36)
-desktop:  9 files, 72 tests passed        (eran 64; +8); typecheck y build limpios
+gateway:  335 passed                      (eran 285; +50)
+desktop:  13 files, 139 tests passed      (eran 64; +75, de ellos 73 de Morse
+          y de los sketches); typecheck y build limpios
 bench:    enlace-digital 91 comprobaciones · clave-morse TODO OK ·
           morse-duplex TODO OK (35) · test_puente 24/0 · test_visor 27/0
 protocolo: protocol in sync — 55 checks passed, 0 skipped
@@ -368,7 +379,8 @@ tumbaba el enlace y el nodo salía `offline` para siempre.
 - [ ] **Etapa de dos ordenadores**: el procedimiento de medida de masas está
       escrito; nadie lo ha ejecutado.
 - [ ] `make check` **entero** no se ha corrido en esta máquina: falta `make` y el
-      toolchain de ESP-IDF, así que `fw-test` y `fw-build` no se han ejecutado.
+      toolchain de ESP-IDF. El contenido de `fw-test` sí se ha corrido, por su
+      runner de Python (ver la sección de abajo); `fw-build` no.
       Sí se han corrido, uno a uno, los cinco comandos de `bench-test`, la suite
       del gateway, la del desktop y las dos puertas de `contracts`.
 - [ ] La rama POSIX de `captura_serie.py` sigue sin reprobarse en Linux.
@@ -391,7 +403,30 @@ tumbaba el enlace y el nodo salía `offline` para siempre.
 
 Decision y consecuencias: `docs/DECISIONS.md` D-23.
 
-**NO hecho:** la mitad ESP-IDF (`esps_morse.c`), que es GPIO, ISR de flanco,
-tarea y publicacion de canales. Y `make -C firmware/test/host test` no se ha
-podido ejecutar aqui por no haber `make`; lo verificado es el runner de Python,
-que compila los mismos ficheros con las mismas banderas.
+## Anadido despues: la mitad ESP-IDF de esps_morse (2026-09-22, commit 7704cae)
+
+- [x] `firmware/components/esps_morse/src/esps_morse.c` (513 lineas) y
+      `include/esps_morse.h` — pines, dos ISR de flanco que solo sellan tiempo y
+      una tarea de 1 ms que decide. `main.c` publica NDB, telemetria y eventos.
+- [x] `[env:esp32dev_morse]` en `firmware/platformio.ini`: el MISMO binario en
+      las dos placas, el cable cruzado, sin roles A/B.
+- [x] Salida real del commit: `esp32dev_morse` / `esp32dev` / `esp32dev_dio_a`
+      SUCCESS; `firmware/test/host/run_tests.py` ALL TESTS PASSED; las dos
+      placas arrancando (`morse: transceiver up: key=13 tx=26 rx=25`) y vistas
+      en la app como nodos ENLP con `kind: "serial"` — ya no por el adaptador.
+      Tecleando `SOS` en las dos llaves: `symbols 9 = 9` en los dos sentidos.
+
+**NO hecho / NO verificado en esta sesion de auditoria:**
+
+- [ ] `pio run -e esp32dev_morse` y la prueba en placas **no se han repetido
+      aqui**: no hay toolchain de ESP-IDF en esta maquina y el hardware estaba
+      en uso. Lo de arriba es la evidencia que dejo el commit 7704cae.
+- [ ] `esp32dev_morse` **no esta en la matriz de CI** (`.github/workflows/ci.yml`
+      construye `esp32dev`, `esp32c3`, `esp32dev_dio_a`, `esp32dev_dio_b`), asi
+      que hoy nada impide que un cambio lo rompa sin que salte ninguna puerta.
+- [ ] Ninguna tanda se ha repetido con este firmware: todas las medidas del
+      informe se tomaron con el sketch, y el +-1 ms entre extremos depende ahora
+      de que la tarea de 1 ms no se retrase, cosa que no esta medida.
+- [ ] `make -C firmware/test/host test` sigue sin poder ejecutarse aqui por no
+      haber `make`; lo verificado es el runner de Python, que compila los mismos
+      ficheros con las mismas banderas.

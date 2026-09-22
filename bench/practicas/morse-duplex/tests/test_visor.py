@@ -7,6 +7,9 @@
    evidencia de la tanda congelada, se suscribe a /eventos (SSE) y comprueba que
    las letras que llegan por SSE son EXACTAMENTE las que imprimieron las placas.
 4. Que el visor de esta practica se sirve y que /comando se rechaza en reproduccion.
+5. El contrato del bus en el que se apoya el visor para sobrevivir a una
+   reconexion del SSE: cada evento lleva `n` monotono y el historial se reenvia
+   entero a CADA conexion nueva.
 
 Uso: python3 bench/practicas/morse-duplex/tests/test_visor.py
 """
@@ -157,6 +160,30 @@ else:
     check("llegan umbrales de los DOS sentidos de las DOS placas",
           len({(e["src"], e["sentido"]) for e in evs
                if e.get("tipo") == "umbrales" and e.get("sentido")}) == 4)
+
+# ---- 5. lo que el visor necesita para aguantar una reconexion del SSE ------
+# EventSource se reconecta solo en cuanto la conexion se corta, y el puente le
+# reenvia su historial entero. Sin filtro, el visor repetia letras y pulsos como
+# si acabaran de ocurrir. El filtro se apoya en `n`, asi que `n` es contrato.
+bus = P.Bus()
+for _ in range(3):
+    bus.publicar("A", {"tipo": "simbolo", "sentido": "RX", "v": "."})
+_, hist1 = bus.suscribir()
+_, hist2 = bus.suscribir()
+check("cada evento lleva `n` monotono empezando en 1", [e["n"] for e in hist1] == [1, 2, 3])
+check("una reconexion recibe OTRA VEZ el mismo historial (de ahi el filtro del visor)",
+      [e["n"] for e in hist2] == [1, 2, 3])
+
+# Comprobaciones ESTATICAS sobre el visor (aqui no hay motor JS que ejecutarlo).
+VISOR = (RAIZ / "visor" / "index.html").read_text(encoding="utf-8")
+check("el visor descarta el historial repetido filtrando por ev.n",
+      "ev.n <= ultN" in VISOR and "borrarPantalla()" in VISOR)
+check("el cruce de integridad usa el contador sin recortar, no pulsos.length",
+      "TX.nPulsos" in VISOR and "RX.nPulsos" in VISOR and "TX.pulsos.length" not in VISOR)
+check("los segmentos sin bajada caducan (no se dibujan como barra infinita)",
+      "(s.t1 === null ? s.t0 : s.t1) > lim" in VISOR)
+check("el texto decodificado se escapa antes de ir a innerHTML",
+      "esc(f.texto.slice(-40))" in VISOR)
 
 print(f"\n{pruebas} pruebas, {fallos} fallos")
 sys.exit(1 if fallos else 0)

@@ -241,20 +241,130 @@ int test_morse_decode_all(void) {
         ESPS_CHECK(&fails, got >= 1);
     }
 
+    /* --- the debounce boundary is inclusive upwards --------------------- */
+    /* SPEC-DUPLEX.md spends a whole section on this frontier being fuzzy by
+     * +-1 ms on hardware because two filters use two time bases. That is a
+     * property of the sketch's mixed millis()/micros() arithmetic, NOT a
+     * licence for the decision itself to be fuzzy: at a given measured
+     * duration the answer is fixed, and `< debounce_ms` is noise while
+     * `== debounce_ms` is a symbol. Without this pair the comparison could be
+     * flipped to `<=` and every vector above would still pass. */
+    drv_init(&dr, &th);
+    t = drv_pulse(&dr, 1000000u, ESPS_MORSE_DEFAULT_DEBOUNCE_MS - 1u);
+    drv_tick_to(&dr, t, t + 1000000u);
+    ESPS_CHECK_EQ(&fails, dr.d.filtered, 1);
+    ESPS_CHECK_EQ(&fails, dr.d.dots, 0);
+    ESPS_CHECK_EQ(&fails, dr.ev[0].kind, ESPS_MORSE_EVENT_FILTERED);
+
+    drv_init(&dr, &th);
+    t = drv_pulse(&dr, 1000000u, ESPS_MORSE_DEFAULT_DEBOUNCE_MS);
+    drv_tick_to(&dr, t, t + 1000000u);
+    ESPS_CHECK_EQ(&fails, dr.d.filtered, 0);
+    ESPS_CHECK_EQ(&fails, dr.d.dots, 1);
+    ESPS_CHECK_EQ(&fails, dr.ev[0].kind, ESPS_MORSE_EVENT_SYMBOL);
+    ESPS_CHECK_EQ(&fails, dr.ev[0].ms, ESPS_MORSE_DEFAULT_DEBOUNCE_MS);
+    drv_text(&dr, text, sizeof(text));
+    ESPS_CHECK(&fails, strcmp(text, "E") == 0);  /* letter at 700 ms, word not yet */
+
+    /* --- a gap that closes a letter and a word on the SAME tick ---------- */
+    /* The order is the contract (D-23): letter first, word second. Every
+     * vector above reaches the two on different ticks, so nothing yet pinned
+     * the case where one call has to produce both -- which is the case a
+     * caller that polls slowly, or that was held off by a busy link, will
+     * actually hit. */
+    {
+        drv_init(&dr, &th);
+        esps_morse_event_t two[MAXEV];
+        esps_morse_edge(&dr.d, 1, 1000000u, two, MAXEV);
+        esps_morse_edge(&dr.d, 0, 1100000u, two, MAXEV);   /* a dot */
+        /* One tick, two seconds later: past letter_ms AND past word_ms. */
+        size_t got = esps_morse_tick(&dr.d, 1100000u + 2000000u, two, MAXEV);
+        ESPS_CHECK_EQ(&fails, got, 2);
+        if (got == 2) {
+            ESPS_CHECK_EQ(&fails, two[0].kind, ESPS_MORSE_EVENT_LETTER);
+            ESPS_CHECK_EQ(&fails, two[0].letter, 'E');
+            ESPS_CHECK_EQ(&fails, two[0].ms, 2000);      /* the gap, in ms */
+            ESPS_CHECK_EQ(&fails, two[1].kind, ESPS_MORSE_EVENT_WORD);
+            ESPS_CHECK_EQ(&fails, two[1].ms, 2000);
+            ESPS_CHECK_EQ(&fails, two[1].letter, '\0');
+            ESPS_CHECK_EQ(&fails, two[1].code[0], '\0');
+        }
+        /* And nothing more is due: the machine stopped measuring. */
+        ESPS_CHECK_EQ(&fails, esps_morse_tick(&dr.d, 1100000u + 9000000u, two, MAXEV), 0);
+    }
+
+    /* --- max == 1 loses the word, exactly as documented ------------------ */
+    /* D-23 states this is the behaviour and that it is not detected at
+     * runtime. An undetectable contract deserves a vector, otherwise the day
+     * someone "fixes" tick() to re-report the word on the next call, nothing
+     * fails. */
+    {
+        drv_init(&dr, &th);
+        esps_morse_event_t one[1];
+        esps_morse_edge(&dr.d, 1, 1000000u, one, 1);
+        esps_morse_edge(&dr.d, 0, 1100000u, one, 1);
+        size_t got = esps_morse_tick(&dr.d, 1100000u + 2000000u, one, 1);
+        ESPS_CHECK_EQ(&fails, got, 1);
+        ESPS_CHECK_EQ(&fails, one[0].kind, ESPS_MORSE_EVENT_LETTER);
+        /* The word was consumed by the state machine, not queued. */
+        ESPS_CHECK_EQ(&fails, esps_morse_tick(&dr.d, 1100000u + 3000000u, one, 1), 0);
+    }
+
+    /* --- the UNKNOWN event carries the gap, not the pulse ---------------- */
+    drv_init(&dr, &th);
+    t = drv_key(&dr, ".......", 1000000u, 100u, 400u, 150u, 900u);
+    drv_tick_to(&dr, t, t + 1000000u);
+    ESPS_CHECK_EQ(&fails, dr.ev[dr.n - 1].kind, ESPS_MORSE_EVENT_UNKNOWN);
+    ESPS_CHECK_EQ(&fails, dr.ev[dr.n - 1].ms, ESPS_MORSE_DEFAULT_LETTER_MS);
+    ESPS_CHECK_EQ(&fails, dr.ev[dr.n - 1].letter, '\0');
+
     /* --- NULL and zero-capacity calls are defined ----------------------- */
     ESPS_CHECK_EQ(&fails, esps_morse_edge(NULL, 1, 0, ev, MAXEV), 0);
     ESPS_CHECK_EQ(&fails, esps_morse_tick(NULL, 0, ev, MAXEV), 0);
+    ESPS_CHECK(&fails, !esps_morse_dec_init(NULL, &th));
+    ESPS_CHECK(&fails, !esps_morse_dec_set_thresholds(NULL, &th));
+    ESPS_CHECK(&fails, !esps_morse_dec_set_thresholds(&d, NULL));
     esps_morse_dec_reset_counters(NULL);
+    esps_morse_thresholds_init(NULL);    /* must not fault */
     drv_init(&dr, &th);
     /* out == NULL still advances the machine: the counters move. */
     esps_morse_edge(&dr.d, 1, 1000000u, NULL, 0);
     esps_morse_edge(&dr.d, 0, 1100000u, NULL, 0);
     ESPS_CHECK_EQ(&fails, dr.d.dots, 1);
+    /* A non-NULL out with max == 0 is the same promise: advance, no events,
+     * and above all do not write to out[0]. ASan is what makes this check
+     * mean something. */
+    drv_init(&dr, &th);
+    ev[0].kind = ESPS_MORSE_EVENT_WORD;
+    ESPS_CHECK_EQ(&fails, esps_morse_edge(&dr.d, 1, 1000000u, ev, 0), 0);
+    ESPS_CHECK_EQ(&fails, esps_morse_edge(&dr.d, 0, 1100000u, ev, 0), 0);
+    ESPS_CHECK_EQ(&fails, ev[0].kind, ESPS_MORSE_EVENT_WORD);   /* untouched */
+    ESPS_CHECK_EQ(&fails, dr.d.dots, 1);
+    ESPS_CHECK_EQ(&fails, esps_morse_tick(&dr.d, 1100000u + 2000000u, ev, 0), 0);
+    ESPS_CHECK_EQ(&fails, ev[0].kind, ESPS_MORSE_EVENT_WORD);
+    ESPS_CHECK_EQ(&fails, dr.d.letters, 1);   /* it still closed */
 
     /* --- counters reset without disturbing the thresholds --------------- */
+    drv_init(&dr, &th);
+    t = drv_pulse(&dr, 1000000u, 5u);              /* filtered */
+    esps_morse_edge(&dr.d, 0, t + 1000u, ev, MAXEV); /* repeated level */
+    t = drv_key(&dr, ".......", t + 100000u, 100u, 400u, 150u, 900u);
+    drv_tick_to(&dr, t, t + 1000000u);
+    ESPS_CHECK_EQ(&fails, dr.d.filtered, 1);
+    ESPS_CHECK_EQ(&fails, dr.d.repeated, 1);
+    ESPS_CHECK_EQ(&fails, dr.d.unknown, 1);
+    ESPS_CHECK(&fails, dr.d.last_gap_ms > 0);
     esps_morse_dec_reset_counters(&dr.d);
     ESPS_CHECK_EQ(&fails, dr.d.dots, 0);
+    ESPS_CHECK_EQ(&fails, dr.d.dashes, 0);
+    ESPS_CHECK_EQ(&fails, dr.d.letters, 0);
+    ESPS_CHECK_EQ(&fails, dr.d.unknown, 0);
+    ESPS_CHECK_EQ(&fails, dr.d.filtered, 0);
+    ESPS_CHECK_EQ(&fails, dr.d.repeated, 0);
+    ESPS_CHECK_EQ(&fails, dr.d.last_pulse_ms, 0);
+    ESPS_CHECK_EQ(&fails, dr.d.last_gap_ms, 0);
     ESPS_CHECK_EQ(&fails, dr.d.th.dot_dash_ms, ESPS_MORSE_DEFAULT_DOT_DASH_MS);
+    ESPS_CHECK_EQ(&fails, dr.d.th.letter_ms, ESPS_MORSE_DEFAULT_LETTER_MS);
 
     /* --- the bench's own numbers ---------------------------------------- */
     /* Tanda 2 ran with p=300 l=600 w=1800 d=40 frozen on both boards. These

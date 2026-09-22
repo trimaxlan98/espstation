@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 // module graph loadable, never gets exercised for real.
 vi.mock('electron', () => ({ app: { getAppPath: () => '/fake/desktop' } }))
 
-import { GatewaySupervisor } from './gatewaySupervisor'
+import { GatewaySupervisor, venvPython } from './gatewaySupervisor'
 import type { GatewayLogLine } from '@shared/types'
 
 /** Minimal fake ChildProcess: an EventEmitter with stdout/stderr sub-emitters and a spy'd kill(). */
@@ -133,5 +133,31 @@ describe('GatewaySupervisor', () => {
     expect(sup.status().state).toBe('error')
     expect(sup.status().error).toContain('code 1')
     expect(logs.some((l) => l.stream === 'main' && l.level === 'error')).toBe(true)
+  })
+})
+
+describe('venvPython', () => {
+  // Regression: this was hard-coded to the POSIX layout, so on Windows the
+  // interpreter was never found and managed mode was permanently
+  // unavailable — with an error message pointing at a path that could not
+  // exist on that platform.
+  it('uses the Scripts layout on Windows', () => {
+    const p = venvPython('C:/repo/gateway', 'win32')
+    expect(p).toContain('Scripts')
+    expect(p).toContain('python.exe')
+    expect(p).not.toContain('bin')
+  })
+
+  // `join` uses the separator of the machine RUNNING the test, not of the
+  // platform being asked about, so these assert on the segments rather than
+  // on a literal '/' — otherwise the suite passes on Linux and fails on
+  // Windows for a reason that has nothing to do with the code.
+  it('uses the bin layout everywhere else', () => {
+    for (const platform of ['linux', 'darwin']) {
+      const p = venvPython('/repo/gateway', platform)
+      expect(p).toContain('bin')
+      expect(p).not.toContain('Scripts')
+      expect(p).not.toContain('.exe')
+    }
   })
 })

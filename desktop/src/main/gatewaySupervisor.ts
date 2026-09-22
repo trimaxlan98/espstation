@@ -31,24 +31,46 @@ export interface GatewayLaunchResolution {
 }
 
 /**
+ * Where a virtualenv puts its interpreter. POSIX uses `bin/python`, Windows
+ * uses `Scripts\python.exe` — the layout is the venv module's, not ours, and
+ * hard-coding the POSIX one made managed mode permanently unavailable on
+ * Windows: `existsSync` simply said no and the app reported a missing
+ * interpreter that was sitting right there.
+ */
+export function venvPython(gatewayDir: string, platform: string = process.platform): string {
+  return platform === 'win32'
+    ? join(gatewayDir, '.venv', 'Scripts', 'python.exe')
+    : join(gatewayDir, '.venv', 'bin', 'python')
+}
+
+/**
  * Resolves the gateway's interpreter/cwd relative to the desktop app root:
- * dev repo layout is `<repoRoot>/gateway/.venv/bin/python`, repoRoot being
- * the parent of `desktop/`. `pythonPathOverride` (from Settings, or the
+ * dev repo layout is `<repoRoot>/gateway/.venv/…`, repoRoot being the parent
+ * of `desktop/`. `pythonPathOverride` (from Settings, or the
  * `ESPSTATION_GATEWAY_PYTHON` env var) takes precedence unconditionally —
  * same escape hatch PiStation's DSP/agent launchers use.
+ *
+ * Note this only ever resolves in the DEV layout. In a packaged install
+ * `app.getAppPath()` points inside the bundle, so `../gateway` does not
+ * exist and managed mode is correctly unavailable — a packaged app is
+ * expected to talk to a gateway the user runs (the `external` mode this
+ * class documents). The override is the way to point a packaged app at a
+ * real interpreter.
  */
 export function resolveGatewayLaunch(pythonPathOverride?: string): GatewayLaunchResolution {
   const gatewayDir = join(app.getAppPath(), '..', 'gateway')
   const override = pythonPathOverride || process.env['ESPSTATION_GATEWAY_PYTHON']
-  const pythonBin = override || join(gatewayDir, '.venv', 'bin', 'python')
+  const pythonBin = override || venvPython(gatewayDir)
   if (!existsSync(pythonBin)) {
+    const make =
+      process.platform === 'win32'
+        ? `'python -m venv .venv && .venv\\Scripts\\pip install -e ".[dev]"'`
+        : `'~/.local/bin/virtualenv .venv && .venv/bin/pip install -e ".[dev]"'`
     return {
       available: false,
       pythonBin,
       cwd: gatewayDir,
-      reason:
-        `gateway python interpreter not found at ${pythonBin}. Run, inside gateway/: ` +
-        `'~/.local/bin/virtualenv .venv && .venv/bin/pip install -e ".[dev]"'.`
+      reason: `gateway python interpreter not found at ${pythonBin}. Run, inside gateway/: ${make}.`
     }
   }
   return { available: true, pythonBin, cwd: gatewayDir }

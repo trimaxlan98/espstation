@@ -54,6 +54,17 @@ export class TelemetryRingBuffer {
     return [...this.points]
   }
 
+  /**
+   * The last `n` points, as a snapshot. Use this whenever the caller only
+   * needs a window: `toArray()` copies the whole buffer, and a view that
+   * draws 120 slots from a 1200-point buffer at 20 Hz was copying ~24k
+   * points a second per channel to look at 10% of them.
+   */
+  recent(n: number): TelemetryPoint[] {
+    if (n <= 0) return []
+    return this.points.length <= n ? [...this.points] : this.points.slice(-n)
+  }
+
   get length(): number {
     return this.points.length
   }

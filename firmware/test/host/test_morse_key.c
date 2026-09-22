@@ -111,6 +111,38 @@ int test_morse_key_all(void) {
     ESPS_CHECK_EQ(&fails, n, 4);           /* up, down, up, down */
     ESPS_CHECK_EQ(&fails, esps_morse_key_bounces(&k), 0);
 
+    /* --- the deadline is inclusive, and not a millisecond earlier -------- */
+    /* `>=` versus `>` is a one-character difference that no vector above
+     * distinguishes, and it is the difference between the 15 ms filter the
+     * SPEC documents and a 16 ms one. */
+    esps_morse_key_init(&k, 15u, 0u);
+    ESPS_CHECK_EQ(&fails, esps_morse_key_sample(&k, 1u, 1000u), -1);  /* the change */
+    ESPS_CHECK_EQ(&fails, esps_morse_key_sample(&k, 1u, 1014u), -1);  /* 14 ms: no */
+    ESPS_CHECK_EQ(&fails, esps_morse_key_sample(&k, 1u, 1015u), 1);   /* 15 ms: yes */
+    /* And once accepted it does not fire again for the same change. */
+    ESPS_CHECK_EQ(&fails, esps_morse_key_sample(&k, 1u, 1016u), -1);
+    ESPS_CHECK_EQ(&fails, k.accepted, 1);
+
+    /* The documented maximum is a legal value, not one over the edge. */
+    ESPS_CHECK(&fails, esps_morse_key_init(&k, ESPS_MORSE_KEY_DEBOUNCE_MAX_MS, 0u));
+    ESPS_CHECK_EQ(&fails, k.debounce_ms, ESPS_MORSE_KEY_DEBOUNCE_MAX_MS);
+
+    /* --- a stamp that goes BACKWARDS defeats the filter ------------------ */
+    /* Not a defect to fix here: the filter's "has it held long enough?" is an
+     * unsigned subtraction, which is what makes it correct across the 49.7
+     * day wrap, and the same arithmetic cannot tell a wrap from a clock that
+     * went backwards by 1 ms. This vector pins the consequence so that the
+     * caller-side guard that exists because of it -- key_clock() in
+     * esps_morse.c, which clamps the stamps the ISR rings produce so they
+     * never regress -- can never be deleted as "defensive programming nobody
+     * asked for". On the node the regression is real: the acceptance poll and
+     * the ring drain read the clock at different moments, and the ISR can
+     * capture an edge between them. */
+    esps_morse_key_init(&k, 15u, 0u);
+    ESPS_CHECK_EQ(&fails, esps_morse_key_sample(&k, 1u, 1000u), -1);
+    ESPS_CHECK_EQ(&fails, esps_morse_key_sample(&k, 1u, 999u), 1);  /* 1 ms early -> ~49 days */
+    ESPS_CHECK_EQ(&fails, k.accepted, 1);
+
     /* --- the millisecond clock wrap [D-10] ------------------------------ */
     /* A press that starts 20 ms before the uint32 millisecond rollover must
      * still be accepted 15 ms later, on the other side of it. At ~49.7 days

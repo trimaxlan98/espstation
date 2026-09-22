@@ -203,3 +203,40 @@ def test_a_whole_real_session_replays_into_valid_frames(log):
     assert letters == printed and letters, f"{len(letters)} vs {len(printed)}"
     assert telemetry > 20
     assert dec.unparsed == 0, "the adapter did not understand a line of a real log"
+
+
+# -- the line buffer -------------------------------------------------------
+def test_a_burst_of_complete_lines_is_never_truncated_by_the_line_bound():
+    """Regression: feed() trimmed the buffer to the last MAX_LINE bytes
+    BEFORE splitting it, so a burst bigger than 4 KiB -- exactly what a
+    SerialTransport 4096-byte read delivers on a busy port -- silently lost
+    everything before the cut. 200 letters went in and 136 events came out."""
+    dec = MS.MorseSketchDecoder(node_id=7)
+    dec.feed(b"")
+    line = b"RX [letra: A] [bin: 01000001]\n"
+    out = decode_all(dec.feed(line * 200))
+    assert len(out) == 200, f"{len(out)} of 200 lines survived"
+    assert all(e.data["letter"] == "A" for _, e in out)
+    assert dec.unparsed == 0 and dec.overlong == 0
+
+
+def test_an_unterminated_run_is_still_bounded():
+    dec = MS.MorseSketchDecoder(node_id=7)
+    dec.feed(b"")
+    dec.feed(b"x" * (MS.MAX_LINE * 3))          # a port gone mad, no newline
+    assert len(dec._buf) == MS.MAX_LINE
+    assert dec.overlong >= 1
+
+
+def test_a_corrupt_numeric_field_is_counted_not_raised():
+    """Regression: the field goes into a u32 sample, so struct.pack raised,
+    the exception escaped feed(), Link._pump() caught it and the whole board
+    went offline because of one flipped bit."""
+    dec = MS.MorseSketchDecoder(node_id=7)
+    dec.feed(b"")
+    assert dec.feed(b"# RX pulso_ms=99999999999\n") == []
+    assert dec.malformed == 1
+    # and the link keeps working afterwards
+    out = decode_all(dec.feed(b"# RX pulso_ms=180\n"))
+    assert {(s.ch, s.value) for s in out[0][1].samples} == {(24, 180), (23, 0)}
+    assert dec.malformed == 1

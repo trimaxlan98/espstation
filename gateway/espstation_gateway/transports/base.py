@@ -161,7 +161,21 @@ class Link:
             async for chunk in self.transport.receive():
                 for kind, payload in self.decoder.feed(chunk):
                     await self._emit(LinkEvent(kind, payload))
+            # The iterator ended without raising: the medium is FINISHED, not
+            # broken. A replayed capture reached the end of its recording, a
+            # TCP peer closed cleanly, a serial transport was told to stop.
+            #
+            # This used to fall off the end silently, leaving `connected` True
+            # for a link that can never produce another byte — the app kept
+            # showing the node online and its last counters as if they were
+            # live. That is the same class of lie D-22 rejects elsewhere, so
+            # it is reported as its own kind: an end, not an error, because
+            # painting a finished replay red would be wrong too.
+            self.connected = False
+            await self._emit(LinkEvent("closed", None))
         except asyncio.CancelledError:
+            # stop() cancels this task, and that is a deliberate teardown, not
+            # an end of medium: stop() has already set connected itself.
             raise
         except Exception as exc:  # transport died mid-stream
             self.connected = False

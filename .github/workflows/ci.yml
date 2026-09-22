@@ -59,7 +59,13 @@ jobs:
         # are all behind ESPS_DIO_ROLE, so without these entries a change that
         # breaks them passes CI. Building them is not a substitute for the
         # bench either — nothing here proves an edge ever reaches a wire.
-        env: [esp32dev, esp32c3, esp32dev_dio_a, esp32dev_dio_b]
+        #
+        # esp32dev_morse is here for the same reason and was missing: the
+        # Morse transceiver's ISRs, its 1 ms task and its NDB are all behind
+        # ESPS_MORSE_BUILD, so until this entry existed the whole ESP-IDF half
+        # of esps_morse had no automated gate at all — only its pure C11 half,
+        # via fw-test.
+        env: [esp32dev, esp32c3, esp32dev_dio_a, esp32dev_dio_b, esp32dev_morse]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

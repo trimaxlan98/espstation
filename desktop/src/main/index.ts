@@ -1,7 +1,8 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 import { join } from 'node:path'
 import { is } from './isDev'
 import { loadSettings, saveSettings } from './settings'
+import { writeSketch } from './sketchExport'
 import { GatewaySupervisor } from './gatewaySupervisor'
 import { IpcChannel } from '@shared/ipc'
 import type { GatewayLogLine, SettingsPatch } from '@shared/types'
@@ -131,6 +132,30 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannel.GatewayStatus, () => {
     if (!gateway) throw new Error('gateway supervisor not initialized')
     return gateway.status()
+  })
+
+  // A folder, not a file: the Arduino IDE only opens `foo.ino` from a folder
+  // called `foo`, so this creates that folder itself (sketchExport.ts).
+  ipcMain.handle(IpcChannel.SketchSave, async (event, file: string, content: string) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    const opts: Electron.OpenDialogOptions = {
+      title: `Where should the ${file} sketch folder go?`,
+      buttonLabel: 'Save sketch here',
+      properties: ['openDirectory', 'createDirectory']
+    }
+    // Modal to the window that asked, when there is one: a dialog that can
+    // end up behind the app is a hang as far as the user is concerned.
+    const picked = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
+    const dir = picked.filePaths[0]
+    if (picked.canceled || dir === undefined) return { saved: false, reason: 'cancelled' }
+    return writeSketch(dir, file, content)
+  })
+
+  ipcMain.handle(IpcChannel.SketchCopy, (_event, content: string) => {
+    // Electron's clipboard rather than navigator.clipboard: the packaged
+    // renderer runs from file://, and the async clipboard API's availability
+    // there is a browser detail this app should not be betting on.
+    clipboard.writeText(content)
   })
 }
 

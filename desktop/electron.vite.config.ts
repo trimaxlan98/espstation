@@ -35,9 +35,19 @@ export default defineConfig({
     resolve: {
       alias: {
         '@renderer': resolve('src/renderer/src'),
-        '@shared': resolve('src/shared')
+        '@shared': resolve('src/shared'),
+        // The bench sketches are imported with `?raw` so the packaged app can
+        // hand them out on a machine that has no copy of this repository
+        // (lib/sketches.ts). The alias points OUT of desktop/ on purpose:
+        // the sketch that ships must be the same file the boards are flashed
+        // from, not a copy that drifts.
+        '@sketches': resolve('../bench/practicas')
       }
     },
+    // `electron-vite dev` serves the renderer, and its server refuses to read
+    // outside the root — without this the sketches resolve in a packaged
+    // build and fail only in dev, which is the wrong way round.
+    server: { fs: { allow: [resolve('.'), resolve('../bench/practicas')] } },
     plugins: [react()]
   }
 })

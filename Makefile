@@ -16,11 +16,13 @@ PORT     ?= /dev/ttyUSB0
 help:
 	@echo "EspStation — targets"
 	@echo ""
-	@echo "  make check          all gates that need no hardware (what CI runs)"
+	@echo "  make check          all gates that need no hardware (CI also builds the pio envs)"
 	@echo "  make contracts      protocol drift + agent-role sync"
-	@echo "  make fw-test        firmware codec tests on the host (gcc + sanitizers)"
+	@echo "  make fw-test        pure-C11 component tests on the host: esps_proto codec,"
+	@echo "                      esps_dio, esps_morse (gcc + -Werror + ASan/UBSan)"
 	@echo "                      (sin make, p. ej. Windows: python3 firmware/test/host/run_tests.py)"
-	@echo "  make bench-test     the bench practices' real .ino sketches on a host mock"
+	@echo "  make bench-test     the bench practices' real .ino sketches on a host mock,"
+	@echo "                      plus the serial bridge and the duplex viewer (needs g++)"
 	@echo "  make fw-build       build firmware        [FW_ENV=$(FW_ENV)]"
 	@echo "  make fw-flash       build and upload      [FW_ENV=$(FW_ENV)]"
 	@echo "  make fw-monitor     serial monitor        [PORT=$(PORT)]"
@@ -28,7 +30,8 @@ help:
 	@echo "  make gateway-run    gateway with simulated nodes + a virtual-cable pair on :8787"
 	@echo "  make desktop-test   typecheck + vitest + build"
 	@echo "  make desktop-dev    launch the app (needs a gateway running)"
-	@echo "  make sniff          decoded ENLP frame dump [PORT=$(PORT)]"
+	@echo "  make sniff          decoded ENLP frame dump [PORT=$(PORT)]  -- NO IMPLEMENTADO:"
+	@echo "                      tools/enlp_sniff.py no existe todavia (S1, docs/plans/S1-link-is-real.md M4)"
 	@echo ""
 	@echo "First-time setup: docs/SETUP.md"
 
@@ -81,8 +84,16 @@ desktop-test:
 desktop-dev:
 	cd desktop && npm run dev
 
+# tools/enlp_sniff.py DOES NOT EXIST in this repository. The target is kept
+# so the name stays reserved and the failure says why, instead of an ENOENT
+# from python3 that reads like a broken install. It is planned in
+# docs/plans/S1-link-is-real.md (M4). AGENTS.md, the espstation skills and the
+# bug issue template all still mention it as if it shipped.
 sniff:
-	python3 tools/enlp_sniff.py $(PORT)
+	@echo "make sniff: tools/enlp_sniff.py is not in this repository yet."
+	@echo "            Planned in docs/plans/S1-link-is-real.md (M4)."
+	@echo "            For raw bytes meanwhile: python3 -m serial.tools.miniterm $(PORT) 115200"
+	@exit 1
 
 clean:
 	$(MAKE) -C firmware/test/host clean

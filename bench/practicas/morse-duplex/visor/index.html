@@ -221,9 +221,15 @@ const DIRS = [
 function nuevoFlujo() {
   return {
     texto: "", prog: "", pulsos: [], silencios: [],
+    nPulsos: 0,                 // total SIN recortar: `pulsos` se recorta a MAXB
     contadores: null, umbrales: null,
     cerroLetra: false, cerroPalabra: false
   };
+}
+const MAXTXT = 400;             // el panel solo ensena los ultimos 40 caracteres
+function anotar(f, c) { f.texto = (f.texto + c).slice(-MAXTXT); }
+function esc(x) {
+  return String(x).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
 const est = {};
 SRCS.forEach(s => {
@@ -281,7 +287,19 @@ SRCS.forEach(s => {
 function dirDeEmisor(src) { return DIRS.find(d => d.emisor === src); }
 function dirDeReceptor(src) { return DIRS.find(d => d.receptor === src); }
 
+// El puente reenvia su historial entero (hasta 800 eventos) a CADA conexion de
+// /eventos, y EventSource se reconecta SOLO en cuanto la conexion se corta. Sin
+// este filtro, una reconexion repetia letras, pulsos y trazos como si acabaran de
+// ocurrir: texto duplicado, cruce de integridad falso y barras fantasma. Cada
+// evento trae `n` monotono; un `n === 1` con `ultN` alto significa que el puente
+// se reinicio y hay que empezar de cero, no que sea una repeticion.
+let ultN = 0;
 function aplicar(ev) {
+  if (typeof ev.n === "number") {
+    if (ev.n === 1 && ultN > 1) borrarPantalla();
+    else if (ev.n <= ultN) return;
+    ultN = ev.n;
+  }
   const s = ev.src;
   if (s === "puente") {
     if (ev.tipo === "estado" || ev.tipo === "aviso" || ev.tipo === "fin_demo") pintarEstado(ev);
@@ -305,8 +323,15 @@ function aplicar(ev) {
       const d = dirDeEmisor(s);
       if (d) {
         const t = traza[d.id];
-        if (ev.nivel === 1) t.seg.push({ t0: T, t1: null, sim: null });
-        else {
+        if (ev.nivel === 1) {
+          // Si se perdio la bajada anterior (corte del SSE, recorte de la guarda
+          // de tasa del puente, reinicio de la placa), ese segmento se quedaba
+          // abierto para siempre y se dibujaba como una barra que no para de
+          // crecer. Se cierra aqui, al ver la subida siguiente.
+          const abierto = t.seg[t.seg.length - 1];
+          if (abierto && abierto.t1 === null) abierto.t1 = T;
+          t.seg.push({ t0: T, t1: null, sim: null });
+        } else {
           const ult = t.seg[t.seg.length - 1];
           if (ult && ult.t1 === null) ult.t1 = T;
         }
@@ -321,18 +346,19 @@ function aplicar(ev) {
       break;
     case "letra":
       if (f) {
-        f.texto += ev.letra === "?" ? "¿" : ev.letra;
+        anotar(f, ev.letra === "?" ? "¿" : ev.letra);
         f.prog = "";
         f.cerroLetra = true;
       }
       marcarLetra(s, ev.sentido, ev.letra === "?" ? "¿" : ev.letra, T);
       break;
     case "palabra":
-      if (f) { f.texto += " "; f.cerroPalabra = true; }
+      if (f) { anotar(f, " "); f.cerroPalabra = true; }
       marcarLetra(s, ev.sentido, "/", T);
       break;
     case "pulso":
       if (f && !ev.filtrado) {
+        f.nPulsos++;                      // el que cruza la integridad: sin tope
         f.pulsos.push(ev.ms);
         if (f.pulsos.length > MAXB) f.pulsos.shift();
         reconstruir(s, ev.sentido, ev.ms, T);
@@ -529,7 +555,8 @@ function podar() {
   const lim = ahora() - VIDA;
   DIRS.forEach(d => {
     const t = traza[d.id];
-    t.seg = t.seg.filter(s => s.t1 === null || s.t1 > lim);
+    // Un segmento sin bajada no puede vivir para siempre: se poda por su t0.
+    t.seg = t.seg.filter(s => (s.t1 === null ? s.t0 : s.t1) > lim);
     t.sim = t.sim.filter(m => m.t > lim);
     t.let_ = t.let_.filter(m => m.t > lim);
   });
@@ -604,9 +631,11 @@ function pintarEstaciones() {
     SENTIDOS.forEach(sent => {
       const f = e[sent], el = $("txt" + s + sent);
       if (el) {
-        const t = f.texto.slice(-40);
+        // esc(): la letra sale de un regex `(.)` sobre la linea serie, o sea que
+        // una linea con ruido puede traer '<' o '&'. Nunca al innerHTML en crudo.
+        const t = esc(f.texto.slice(-40));
         el.innerHTML = (t ? t.replace(/ /g, "&nbsp;·&nbsp;") : "&nbsp;")
-          + (f.prog ? ` <span class="prog">${f.prog}</span>` : "");
+          + (f.prog ? ` <span class="prog">${esc(f.prog)}</span>` : "");
       }
       const c = f.contadores, cel = $("cnt" + s + sent);
       if (cel) cel.textContent = !c ? "—"
@@ -629,7 +658,10 @@ function pintarEstaciones() {
 
 function pintarCruce() {
   DIRS.forEach(d => {
-    const ne = est[d.emisor].TX.pulsos.length, nr = est[d.receptor].RX.pulsos.length;
+    // nPulsos, NO pulsos.length: ese array se recorta a MAXB (26) para las tiras
+    // de cadencia, asi que a partir del pulso 27 las dos columnas se quedaban
+    // clavadas en 26 y el veredicto decia "cuadra" pasara lo que pasara.
+    const ne = est[d.emisor].TX.nPulsos, nr = est[d.receptor].RX.nPulsos;
     $("cx" + d.id + "1").textContent = ne;
     $("cx" + d.id + "2").textContent = nr;
     const v = $("cx" + d.id + "3");
@@ -745,7 +777,7 @@ $("bPausa").addEventListener("click", e => {
   e.target.textContent = pausado ? "Reanudar" : "Pausar";
   sucio = true;
 });
-$("bBorrar").addEventListener("click", () => {
+function borrarPantalla() {
   SRCS.forEach(s => {
     const llave = est[s].llave;
     SENTIDOS.forEach(sent => {
@@ -761,7 +793,8 @@ $("bBorrar").addEventListener("click", () => {
   });
   DIRS.forEach(d => { traza[d.id] = { seg: [], sim: [], let_: [] }; });
   sucio = true;
-});
+}
+$("bBorrar").addEventListener("click", borrarPantalla);
 const alterna = (id, set) => $(id).addEventListener("click", e => {
   const v = e.target.getAttribute("aria-pressed") !== "true";
   e.target.setAttribute("aria-pressed", String(v));

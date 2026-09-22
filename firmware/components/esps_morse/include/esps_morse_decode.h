@@ -128,6 +128,17 @@ size_t esps_morse_edge(esps_morse_dec_t *d, uint8_t level, uint32_t t_us,
 
 /* Call as often as the main loop runs. Closes letters and words.
  *
+ * `now_us` MUST NOT PRECEDE the timestamp of the last edge fed to this
+ * decoder. The gap is an unsigned subtraction, so it cannot tell "a few
+ * microseconds in the future" from "71.6 minutes ago": a now_us thirty
+ * microseconds early yields a gap of ~4294967 ms, which clears letter_ms and
+ * word_ms at once and tears the symbol that just arrived off into its own
+ * letter. That is not a defect in the wrap handling -- it is the price of it,
+ * and it is the caller's job to read its clock AFTER feeding its edges, not
+ * before. A caller whose edges are timestamped in an interrupt must assume an
+ * edge can be captured at any moment, including between its own clock read
+ * and its call to esps_morse_edge().
+ *
  * Writes up to TWO events (a LETTER or UNKNOWN, then a WORD) and returns how
  * many it wrote. Order matters and is part of the contract: the letter always
  * precedes the word gap that also closed.
