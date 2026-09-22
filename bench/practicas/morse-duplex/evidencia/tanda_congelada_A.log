@@ -1,0 +1,164 @@
+    0.002 0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+    0.005 configsip: 0, SPIWP:0xee
+    0.011 clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+    0.013 mode:DIO, clock div:1
+    0.016 load:0x3fff0030,len:4876
+    0.017 ho 0 tail 12 room 4
+    0.019 load:0x40078000,len:16532
+    0.021 load:0x40080400,len:3500
+    0.023 entry 0x400805b4
+    0.133 # transceptor morse listo (el mismo sketch en las dos placas)
+    0.141 # umbrales RX punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15
+    0.147 # umbrales TX punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15
+    0.158 # contadores RX puntos=0 rayas=0 letras=0 desconocidas=0 filtrados=0 niveles_repetidos=0 flancos_crudos=0 desbordes_buffer=0
+    0.166 # contadores TX puntos=0 rayas=0 letras=0 desconocidas=0 filtrados=0 niveles_repetidos=0
+    0.169 # llave debounce_ms=15 crudos=0 aceptados=0
+    0.175 # modo eco_local=1 verbose=0
+    3.059 >>> c
+    3.066 # contadores a cero
+    3.482 >>> v
+    3.492 # umbrales RX punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15
+    3.497 # umbrales TX punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15
+    3.509 # contadores RX puntos=0 rayas=0 letras=0 desconocidas=0 filtrados=0 niveles_repetidos=0 flancos_crudos=0 desbordes_buffer=0
+    3.517 # contadores TX puntos=0 rayas=0 letras=0 desconocidas=0 filtrados=0 niveles_repetidos=0
+    3.519 # llave debounce_ms=15 crudos=0 aceptados=0
+    3.525 # modo eco_local=1 verbose=1
+    3.934 >>> l1200
+    3.945 # umbrales RX punto_raya_ms=300 letra_ms=1200 palabra_ms=1800 debounce_ms=15
+    4.356 >>> r
+    4.364 # umbrales RX punto_raya_ms=300 letra_ms=1200 palabra_ms=1800 debounce_ms=15
+    4.370 # umbrales TX punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15
+    4.381 # contadores RX puntos=0 rayas=0 letras=0 desconocidas=0 filtrados=0 niveles_repetidos=0 flancos_crudos=0 desbordes_buffer=0
+    4.390 # contadores TX puntos=0 rayas=0 letras=0 desconocidas=0 filtrados=0 niveles_repetidos=0
+    4.393 # llave debounce_ms=15 crudos=0 aceptados=0
+    4.399 # modo eco_local=1 verbose=1
+    5.009 #MARK INICIO TANDA CONGELADA - A: l1200, resto por defecto
+   44.250 # TX flanco t_ms=44129 nivel=1
+   44.353 # TX flanco t_ms=44228 nivel=0
+   44.353 TX .
+   44.354 # TX pulso_ms=98
+   44.558 # TX flanco t_ms=44439 nivel=1
+   44.563 # TX silencio_ms=211
+   44.631 # TX flanco t_ms=44513 nivel=0
+   44.637 TX .
+   44.637 # TX pulso_ms=74
+   44.871 # TX flanco t_ms=44752 nivel=1
+   44.876 # TX silencio_ms=239
+   44.947 # TX flanco t_ms=44829 nivel=0
+   44.953 TX .
+   44.953 # TX pulso_ms=77
+   45.169 # resumen t_ms=45044 llave_crudos=40 llave_aceptados=6 rx_flancos_crudos=0 nivel_tx=0 nivel_rx=0
+   45.651 TX [letra: S] [bin: 01010011]
+   45.689 # TX flanco t_ms=45570 nivel=1
+   45.692 # TX silencio_ms=741
+   46.055 # TX flanco t_ms=45935 nivel=0
+   46.059 TX -
+   46.059 # TX pulso_ms=364
+   46.523 # TX flanco t_ms=46405 nivel=1
+   46.526 # TX silencio_ms=470
+   46.911 # TX flanco t_ms=46793 nivel=0
+   46.916 TX -
+   46.916 # TX pulso_ms=387
+   47.423 # TX flanco t_ms=47304 nivel=1
+   47.426 # TX silencio_ms=511
+   47.973 # TX flanco t_ms=47854 nivel=0
+   47.975 TX -
+   47.975 # TX pulso_ms=549
+   48.466 # TX flanco t_ms=48348 nivel=1
+   48.472 # TX silencio_ms=494
+   48.527 # TX flanco t_ms=48409 nivel=0
+   48.531 TX .
+   48.531 # TX pulso_ms=60
+   48.732 # TX flanco t_ms=48614 nivel=1
+   48.738 # TX silencio_ms=205
+   48.814 # TX flanco t_ms=48694 nivel=0
+   48.817 TX .
+   48.817 # TX pulso_ms=79
+   49.042 # TX flanco t_ms=48924 nivel=1
+   49.046 # TX silencio_ms=230
+   49.122 # TX flanco t_ms=49004 nivel=0
+   49.125 TX .
+   49.126 # TX pulso_ms=79
+   49.827 TX [letra: ?] [morse: ---...]
+   50.169 # resumen t_ms=50044 llave_crudos=80 llave_aceptados=18 rx_flancos_crudos=0 nivel_tx=0 nivel_rx=0
+   50.924 TX [palabra]
+   51.723 RX .
+   51.723 # RX pulso_ms=100
+   51.943 # RX silencio_ms=221
+   52.069 RX .
+   52.070 # RX pulso_ms=123
+   52.375 # RX silencio_ms=309
+   52.469 RX .
+   52.469 # RX pulso_ms=93
+   52.780 # RX silencio_ms=312
+   52.858 RX .
+   52.859 # RX pulso_ms=78
+   53.983 # RX silencio_ms=1120
+   54.387 RX -
+   54.387 # RX pulso_ms=408
+   54.784 # RX silencio_ms=398
+   55.169 # resumen t_ms=55044 llave_crudos=80 llave_aceptados=18 rx_flancos_crudos=11 nivel_tx=0 nivel_rx=1
+   55.282 RX -
+   55.282 # RX pulso_ms=497
+   55.670 # RX silencio_ms=388
+   56.035 RX -
+   56.036 # RX pulso_ms=364
+   56.430 # RX silencio_ms=396
+   56.497 RX .
+   56.497 # RX pulso_ms=69
+   56.701 # RX silencio_ms=202
+   56.783 RX .
+   56.783 # RX pulso_ms=82
+   57.070 # RX silencio_ms=287
+   57.161 RX .
+   57.161 # RX pulso_ms=91
+   57.734 # RX silencio_ms=573
+   60.167 # resumen t_ms=60044 llave_crudos=80 llave_aceptados=18 rx_flancos_crudos=21 nivel_tx=0 nivel_rx=1
+   65.539 # TX flanco t_ms=65419 nivel=1
+   65.539 # TX silencio_ms=16415
+   68.616 # TX flanco t_ms=68498 nivel=0
+   68.618 TX -
+   68.619 # TX pulso_ms=3078
+   68.631 RX -
+   68.631 # RX pulso_ms=10899
+   68.907 # RX silencio_ms=274
+   69.199 # TX flanco t_ms=69081 nivel=1
+   69.204 # TX silencio_ms=582
+   69.654 # TX flanco t_ms=69536 nivel=0
+   69.659 TX -
+   69.660 # TX pulso_ms=455
+   69.697 RX -
+   69.698 # RX pulso_ms=791
+   69.713 # RX silencio_ms=16
+   69.746 RX .
+   69.746 # RX pulso_ms=33
+   70.160 # RX silencio_ms=406
+   70.171 # resumen t_ms=70044 llave_crudos=186 llave_aceptados=22 rx_flancos_crudos=27 nivel_tx=0 nivel_rx=1
+   70.267 # TX flanco t_ms=70149 nivel=1
+   70.272 # TX silencio_ms=613
+   70.856 # TX flanco t_ms=70737 nivel=0
+   70.858 TX -
+   70.858 # TX pulso_ms=588
+   70.858 RX -
+   70.861 # RX pulso_ms=709
+   71.335 # RX silencio_ms=474
+   71.382 # TX flanco t_ms=71263 nivel=1
+   71.384 # TX silencio_ms=525
+   72.577 # TX flanco t_ms=72458 nivel=0
+   72.578 TX -
+   72.579 # TX pulso_ms=1195
+   72.682 RX -
+   72.683 # RX pulso_ms=1345
+   73.280 TX [letra: ?] [morse: ----]
+   73.881 RX [letra: ?] [morse: ....---.+]
+   74.378 TX [palabra]
+   74.483 RX [palabra]
+   75.170 # resumen t_ms=75044 llave_crudos=264 llave_aceptados=26 rx_flancos_crudos=30 nivel_tx=0 nivel_rx=0
+  104.951 #MARK FIN TANDA
+  105.374 >>> r
+  105.383 # umbrales RX punto_raya_ms=300 letra_ms=1200 palabra_ms=1800 debounce_ms=15
+  105.389 # umbrales TX punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15
+  105.400 # contadores RX puntos=8 rayas=7 letras=0 desconocidas=1 filtrados=0 niveles_repetidos=0 flancos_crudos=30 desbordes_buffer=0
+  105.408 # contadores TX puntos=6 rayas=7 letras=1 desconocidas=2 filtrados=0 niveles_repetidos=0
+  105.413 # llave debounce_ms=15 crudos=264 aceptados=26
+  105.418 # modo eco_local=1 verbose=1

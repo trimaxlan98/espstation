@@ -1,0 +1,186 @@
+# ORIGEN: vigilante mira_dos.py (scratchpad), NO captura_serie.py.
+# FORMATO: las DOS placas mezcladas en un fichero, prefijadas [A] (COM5) y
+#   [B] (COM7). NO hay marca de tiempo del host: los unicos tiempos son los
+#   t_ms que imprimen las propias placas, y cada placa tiene su propio reloj.
+# El orden entre lineas de [A] y de [B] NO es fiable: son dos buffers USB
+#   distintos leidos en bucle. Las duraciones se comparan por ORDEN de pulso,
+#   nunca por la posicion en este fichero (ver SPEC-DUPLEX.md).
+# Sketch: transceptor.ino, el mismo binario en las dos placas (279008 B).
+# Umbrales: los de arranque, sin calibrar (p=300 l=700 w=1800 d=15 k=15).
+# verbose=1 en las dos placas.
+# TANDA: SOS en la llave de B, luego una 'V' en la de A, y al final las dos
+#   llaves pulsadas a la vez (los dos pulsos largos del final).
+[A] >>> v
+[B] >>> v
+[A] # umbrales RX punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15
+[A] # umbrales TX punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15
+[A] # contadores RX puntos=0 rayas=0 letras=0 desconocidas=0 filtrados=0 niveles_repetidos=0 flancos_crudos=0 desbordes_buffer=0
+[A] # contadores TX puntos=0 rayas=0 letras=0 desconocidas=0 filtrados=0 niveles_repetidos=0
+[A] # llave debounce_ms=15 crudos=0 aceptados=0
+[A] # modo eco_local=1 verbose=1
+[B] # umbrales RX punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15
+[B] # umbrales TX punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15
+[B] # contadores RX puntos=0 rayas=0 letras=0 desconocidas=0 filtrados=0 niveles_repetidos=0 flancos_crudos=0 desbordes_buffer=0
+[B] # contadores TX puntos=0 rayas=0 letras=0 desconocidas=0 filtrados=0 niveles_repetidos=0
+[B] # llave debounce_ms=15 crudos=0 aceptados=0
+[B] # modo eco_local=1 verbose=1
+[B] # TX flanco t_ms=13084 nivel=1
+[B] # TX flanco t_ms=13207 nivel=0
+[B] TX .
+[B] # TX pulso_ms=122
+[A] RX .
+[A] # RX pulso_ms=123
+[B] # TX flanco t_ms=13575 nivel=1
+[B] # TX silencio_ms=367
+[A] # RX silencio_ms=368
+[A] RX .
+[A] # RX pulso_ms=97
+[B] # TX flanco t_ms=13672 nivel=0
+[B] TX .
+[B] # TX pulso_ms=97
+[B] # TX flanco t_ms=14085 nivel=1
+[B] # TX silencio_ms=412
+[A] # RX silencio_ms=413
+[A] RX .
+[A] # RX pulso_ms=91
+[B] # TX flanco t_ms=14176 nivel=0
+[B] TX .
+[B] # TX pulso_ms=91
+[A] RX [letra: S] [bin: 01010011]
+[B] TX [letra: S] [bin: 01010011]
+[B] # resumen t_ms=15044 llave_crudos=35 llave_aceptados=6 rx_flancos_crudos=0 nivel_tx=0 nivel_rx=0
+[B] # TX flanco t_ms=15048 nivel=1
+[B] # TX silencio_ms=872
+[A] # resumen t_ms=15044 llave_crudos=0 llave_aceptados=0 rx_flancos_crudos=6 nivel_tx=0 nivel_rx=0
+[A] # RX silencio_ms=872
+[B] # TX flanco t_ms=15506 nivel=0
+[B] TX -
+[B] # TX pulso_ms=457
+[A] RX -
+[A] # RX pulso_ms=458
+[B] TX [letra: T] [bin: 01010100]
+[A] RX [letra: T] [bin: 01010100]
+[A] # RX silencio_ms=817
+[B] # TX flanco t_ms=16323 nivel=1
+[B] # TX silencio_ms=817
+[A] RX -
+[A] # RX pulso_ms=485
+[B] # TX flanco t_ms=16808 nivel=0
+[B] TX -
+[B] # TX pulso_ms=485
+[A] RX [letra: T] [bin: 01010100]
+[B] TX [letra: T] [bin: 01010100]
+[B] # TX flanco t_ms=17622 nivel=1
+[B] # TX silencio_ms=814
+[A] # RX silencio_ms=814
+[B] # TX flanco t_ms=18084 nivel=0
+[B] TX -
+[B] # TX pulso_ms=462
+[A] RX -
+[A] # RX pulso_ms=462
+[A] RX [letra: T] [bin: 01010100]
+[B] TX [letra: T] [bin: 01010100]
+[B] TX [palabra]
+[A] RX [palabra]
+[A] # resumen t_ms=20044 llave_crudos=0 llave_aceptados=0 rx_flancos_crudos=12 nivel_tx=0 nivel_rx=0
+[A] # RX silencio_ms=1946
+[B] # TX flanco t_ms=20030 nivel=1
+[B] # TX silencio_ms=1945
+[B] # resumen t_ms=20044 llave_crudos=47 llave_aceptados=13 rx_flancos_crudos=0 nivel_tx=1 nivel_rx=0
+[B] # TX flanco t_ms=20121 nivel=0
+[B] TX .
+[B] # TX pulso_ms=91
+[A] RX .
+[A] # RX pulso_ms=91
+[B] # TX flanco t_ms=20389 nivel=1
+[B] # TX silencio_ms=267
+[A] # RX silencio_ms=268
+[A] RX .
+[A] # RX pulso_ms=92
+[B] # TX flanco t_ms=20481 nivel=0
+[B] TX .
+[B] # TX pulso_ms=92
+[B] # TX flanco t_ms=20780 nivel=1
+[B] # TX silencio_ms=298
+[B] # TX flanco t_ms=20865 nivel=0
+[B] TX .
+[B] # TX pulso_ms=85
+[A] # RX silencio_ms=299
+[A] RX .
+[A] # RX pulso_ms=85
+[B] TX [letra: S] [bin: 01010011]
+[A] RX [letra: S] [bin: 01010011]
+[B] TX [palabra]
+[A] RX [palabra]
+[A] # resumen t_ms=25044 llave_crudos=0 llave_aceptados=0 rx_flancos_crudos=18 nivel_tx=0 nivel_rx=0
+[B] # resumen t_ms=25044 llave_crudos=56 llave_aceptados=18 rx_flancos_crudos=0 nivel_tx=0 nivel_rx=0
+[A] # TX flanco t_ms=31757 nivel=1
+[B] RX .
+[B] # RX pulso_ms=227
+[A] # TX flanco t_ms=31985 nivel=0
+[A] TX .
+[A] # TX pulso_ms=227
+[B] # RX silencio_ms=231
+[A] # TX flanco t_ms=32217 nivel=1
+[A] # TX silencio_ms=232
+[A] # TX flanco t_ms=32379 nivel=0
+[A] TX .
+[A] # TX pulso_ms=161
+[B] RX .
+[B] # RX pulso_ms=161
+[A] # TX flanco t_ms=32615 nivel=1
+[A] # TX silencio_ms=236
+[B] # RX silencio_ms=235
+[B] RX .
+[B] # RX pulso_ms=129
+[A] # TX flanco t_ms=32745 nivel=0
+[A] TX .
+[A] # TX pulso_ms=129
+[B] # RX silencio_ms=201
+[A] # TX flanco t_ms=32947 nivel=1
+[A] # TX silencio_ms=202
+[A] # TX flanco t_ms=33313 nivel=0
+[A] TX -
+[A] # TX pulso_ms=366
+[B] RX -
+[B] # RX pulso_ms=365
+[A] TX [letra: V] [bin: 01010110]
+[B] RX [letra: V] [bin: 01010110]
+[B] # resumen t_ms=35044 llave_crudos=56 llave_aceptados=18 rx_flancos_crudos=8 nivel_tx=0 nivel_rx=0
+[A] # resumen t_ms=35044 llave_crudos=112 llave_aceptados=8 rx_flancos_crudos=18 nivel_tx=0 nivel_rx=0
+[A] TX [palabra]
+[B] RX [palabra]
+[A] # RX silencio_ms=15626
+[B] # TX flanco t_ms=36490 nivel=1
+[B] # TX silencio_ms=15625
+[B] # RX silencio_ms=5710
+[B] # RX pulso_ms=14 filtrado
+[A] # TX flanco t_ms=39024 nivel=1
+[A] # TX silencio_ms=5710
+[A] # TX flanco t_ms=39039 nivel=0
+[A] # TX pulso_ms=14 filtrado
+[A] # TX flanco t_ms=39116 nivel=1
+[A] # TX silencio_ms=5802
+[B] # RX silencio_ms=5802
+[A] # resumen t_ms=40044 llave_crudos=123 llave_aceptados=11 rx_flancos_crudos=19 nivel_tx=1 nivel_rx=1
+[B] # resumen t_ms=40044 llave_crudos=57 llave_aceptados=19 rx_flancos_crudos=11 nivel_tx=1 nivel_rx=1
+[A] RX -
+[A] # RX pulso_ms=6754
+[B] # TX flanco t_ms=43244 nivel=0
+[B] TX -
+[B] # TX pulso_ms=6753
+[B] RX -
+[B] # RX pulso_ms=4236
+[A] # TX flanco t_ms=43353 nivel=0
+[A] TX -
+[A] # TX pulso_ms=4237
+[A] RX [letra: T] [bin: 01010100]
+[B] TX [letra: T] [bin: 01010100]
+[B] RX [letra: T] [bin: 01010100]
+[A] TX [letra: T] [bin: 01010100]
+[A] # resumen t_ms=45044 llave_crudos=130 llave_aceptados=12 rx_flancos_crudos=20 nivel_tx=0 nivel_rx=0
+[A] RX [palabra]
+[A] TX [palabra]
+[B] # resumen t_ms=45044 llave_crudos=76 llave_aceptados=20 rx_flancos_crudos=12 nivel_tx=0 nivel_rx=0
+[B] TX [palabra]
+[B] RX [palabra]

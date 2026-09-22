@@ -25,8 +25,8 @@ clave-morse/
 ├── receptor/receptor.ino         placa B: ISR + máquina de estados + decodificador
 ├── docs/circuito.svg             diagrama del circuito
 ├── visor/index.html              interfaz gráfica: traducción, circuito EN VIVO, evidencia y conexión (abrir en el navegador)
-├── herramientas/captura_serie.py capturador de serie con canal de comandos (el usado para la evidencia)
-├── herramientas/puente_serie.py  puente placas -> navegador: pestaña «En vivo» del visor (--demo sin hardware)
+├── herramientas/captura_serie.py capturador de serie con canal de comandos (el usado para la evidencia; multiplataforma)
+├── herramientas/puente_serie.py  puente placas -> navegador: pestaña «En vivo» del visor (--demo sin hardware; --log-a/--log-b para registrar evidencia; --reproducir-a/-b para repetir logs; --duplex para ../morse-duplex)
 ├── tests/                        pruebas sin hardware: run_tests.py, replay_evidencia.py (placa real vs sketch vs visor) y test_puente.py
 └── evidencia/                    logs reales de las pruebas en banco
 ```
@@ -96,7 +96,23 @@ configurase como salida por error.
 ```bash
 python3 herramientas/puente_serie.py --a /dev/ttyUSB0 --b /dev/ttyUSB1     # y abrir http://127.0.0.1:8765/#vivo
 python3 herramientas/puente_serie.py --demo 3                              # sin placas: repite la tanda 3 real
+
+# visor Y evidencia a la vez (un puerto serie solo lo abre UN proceso, asi que el visor
+# y captura_serie.py son excluyentes; el log sale en el formato de captura_serie.py):
+python3 herramientas/puente_serie.py --a /dev/ttyUSB0 --b /dev/ttyUSB1 \
+    --log-a evidencia/sesion_A.log --log-b evidencia/sesion_B.log --marcas /tmp/marcas
+echo "#MARK INICIO TANDA 1" >> /tmp/marcas    # entra en los DOS logs
+
+# reproducir cualquier par de logs ya grabados (util para revisar una sesion):
+python3 herramientas/puente_serie.py --velocidad 4 \
+    --reproducir-a evidencia/tanda3_A.log --reproducir-b evidencia/tanda3_B.log
 ```
+
+Este mismo puente sirve a la práctica hermana
+[`../morse-duplex/`](../morse-duplex/README.md) con `--duplex`: cambia el
+intérprete de líneas (allí las placas no tienen rol y prefijan `RX `/`TX `), la
+lista blanca de comandos y el visor que sirve. El modo por defecto —el de esta
+práctica— no cambia en nada.
 
 El puente lee las dos placas y le manda los eventos al navegador (un HTML no puede leer el puerto serie en Firefox). La pestaña
 **2 · En vivo** muestra la llave de A, la señal, el último símbolo de B y **la traducción que imprime B** con el byte de cada letra.
@@ -302,9 +318,67 @@ Cada toque son 2 flancos. `crudos (pin)` son los cambios de lectura de GPIO13 en
   por la máquina de estados. **Causa no determinada** (hipótesis: un glitch de la línea más
   corto que la latencia de la ISR; no se midió con instrumento).
 
+### Segunda sesión: Windows, otro operador (2026-09-21)
+
+Réplica independiente en **Windows 11** (`arduino-cli` 1.5.1, core `esp32:esp32` 3.3.11, los
+mismos del banco de Linux), con **otro operador** y **las mismas dos placas**. Puertos
+`COM5` (A) y `COM7` (B); aquí no hay `/dev/ttyUSB*`. Evidencia en `sesion_win_{A,B}.log` y
+`win_tanda{1,2,3}_{A,B}.log`.
+
+| Tanda | Umbrales (B: `p`/`l`/`w`; A: `d`) | `SOS` intentados | Correctos | Qué salió |
+|---|---|---|---|---|
+| 1 (calibración) | 300 / 700 / 1800; A 15 | 3 | **1** | `S E I` · `S E O S` · **`S O S`** |
+| 2 (evaluación) | 300 / 700 / **2400**; A **25** | 6 grupos | **6** `S O S` seguidos | 1 con `[palabra]` limpio |
+| 3 (final) | **173** / 700 / 2400; A 25 | 4 | **3** | `S O S` · `S J S` · `S O S` · `S O S`, los tres con `[palabra]` |
+
+**Tanda 3, cada pulso justificado.** El operador declaró haberse equivocado en un `SOS`
+(tecleó `SJS`). La cuenta esperada a partir de las letras decodificadas coincide **exactamente**
+con los contadores de la placa:
+
+| | Puntos | Rayas |
+|---|---|---|
+| 3 × `SOS` | 18 | 9 |
+| 1 × `SJS` (`J` = `.---`) | 7 | 3 |
+| **Esperado** | **25** | **12** |
+| **Contado por B** | **25** | **12** |
+
+**Prueba de rebote completa** (lo que quedó *indeterminable* en las tandas 1 y 4 de Linux):
+37 toques → 74 flancos esperados; **A aceptó 74 y B contó 74**, con `filtrados=0`,
+`desbordes_buffer=0` y `niveles_repetidos=0`. El antirrebote absorbió **210 cambios crudos
+del pin hasta dejar 74 flancos exactos**, sin perder ni colar ninguno. Con `d=15` se había
+colado un rebote de **23 ms**; con `d=25` no hay **ningún** hueco por debajo de 60 ms.
+
+**`punto_raya_ms = 173` sale de una banda vacía medida, no de un punto medio inventado.**
+En la tanda 3 los 25 puntos caen en **38–135 ms** y las 12 rayas en **266–399 ms**: entre
+135 y 266 no hay **ni un solo pulso**, 131 ms de separación limpia. Antes, con `p=300`, el
+umbral caía *dentro* de las rayas del operador: 8 intentos de raya se quedaron en 212–292 ms
+y se leyeron como puntos, y otros 10 entraron por los pelos entre 300 y 359 ms. El operador
+lo describió como «cuesta más crear la raya» **antes** de ver los números.
+
+> El operador de Linux calibró a **170** y el de Windows a **173**, por caminos
+> independientes. Dos personas, dos máquinas, el mismo umbral: apunta a que ese valor es una
+> propiedad **de la llave de puntas de jumper**, no del operador. El informe de Linux lo
+> atribuía al operador (§8.2). **No está comprobado con una tercera llave.**
+
+**Limitaciones de esta sesión:**
+- **Una sola tanda por configuración, y los umbrales se cambiaron entre tandas.** El 3 de 4
+  **no se repitió con los umbrales congelados**, que es justo lo que tumbó el 2 de 3 de Linux.
+  No es una tasa de acierto.
+- **En las tandas 1 y 2 no se contaron los toques**, así que ahí la prueba de rebote tampoco
+  se puede cerrar. Solo la tanda 3 tiene el dato.
+- `p=173` se calibró y se evaluó **en la misma tanda**: el umbral sale de los pulsos que
+  luego se usan para juzgarlo. Falta una tanda independiente que lo valide.
+- **No se reprodujo la basura de captura** (bloques de 64 bytes `0xFF`) en ninguna de las
+  tres tandas. Se había desactivado la suspensión selectiva de USB antes de empezar, pero
+  **no se probó a dejarla activada**: no se puede afirmar que sea la causa.
+
 ### Evidencia (`evidencia/`)
 
-`sesion_A.log`, `sesion_B.log` (toda la sesión, con `#MARK` de inicio/fin de cada tanda y los
+**Sesión de Windows (2026-09-21):** `sesion_win_{A,B}.log` (sesión completa con `#MARK` y los
+comandos `>>>`) y los extractos `win_tanda1_{A,B}.log` (calibración), `win_tanda2_{A,B}.log`
+(evaluación) y `win_tanda3_{A,B}.log` (final, la de `p=173`).
+
+**Sesión de Linux:** `sesion_A.log`, `sesion_B.log` (toda la sesión, con `#MARK` de inicio/fin de cada tanda y los
 comandos enviados marcados `>>>`), y los extractos `tanda1_{A,B}.log`, `tanda2_{A,B}.log`,
 `tanda3_{A,B}.log`. La **tanda 4** son capturas completas: `tanda4_{A,B}.log` (incluyen la marca
 `#MARK ANOMALIA` de abajo antes de `INICIO TANDA 4`). **`tanda4_A.log` pesa ≈783 KB** porque sus primeras 23 672
@@ -326,7 +400,9 @@ se conserva sin modificar. Ver `INFORME.md` §8.6.
   se puso a cero y **no cuenta** como medida.
 - **No medido:** temporización de la ISR, GPIO14/reloj (no se usa), longitud del cable,
   cualquier medida con instrumento.
-- `.gitignore:36` (`*.log`) **ignora** los logs de `evidencia/`.
+- Los logs de `evidencia/` **sí se versionan**: aunque `.gitignore:36` ignora `*.log`, la
+  línea 38 (`!bench/practicas/*/evidencia/*.log`) los vuelve a incluir a propósito, y
+  `git ls-files` los lista. *(Antes este punto afirmaba lo contrario; era falso.)*
 
 ## Estado de verificación
 
@@ -348,5 +424,21 @@ se conserva sin modificar. Ver `INFORME.md` §8.6.
   el operador, **2 de 3 `SOS` salieron bien en la tanda 3, pero 0 de 3 en la tanda 4 con los mismos
   umbrales**. No es una tasa de acierto: un operador, 4 tandas. El test de host sólo prueba la **lógica**.
   **Sin medir:** latencia de la ISR y cualquier cosa que requiera instrumento.
+- **Replicado en Windows 11 el 2026-09-21, con otro operador y las mismas placas**
+  (ver «Segunda sesión» en `## Resultados`): compila y sube con el mismo
+  `arduino-cli` 1.5.1 y core 3.3.11 (`transmisor` 273 272 B, `receptor` 277 256 B;
+  los 16 B de diferencia con Linux son la ruta del sketch embebida). `run_tests.py`,
+  `replay_evidencia.py` y `test_puente.py` **pasan enteros**, sin necesitar ningún
+  parche, una vez hay un `g++` en el `PATH`. En hardware: **3 de 4 `SOS` en la tanda
+  final**, con el enlace A→B fiel (74 = 74) y la **prueba de rebote completa**. Sigue
+  sin ser una tasa de acierto: una tanda por configuración, sin repetir con umbrales
+  congelados.
+- **Las dos herramientas de captura se arreglaron a raíz de esa sesión:**
+  `captura_serie.py` es ahora **multiplataforma** (FIFO en POSIX, fichero al que se
+  apendean líneas en Windows, que no tiene FIFOs; el log es idéntico en los dos), y
+  `puente_serie.py` sabe **escribir el log** (`--log-a`, `--log-b`, `--marcas`). Esto
+  último hace falta porque un puerto serie sólo lo abre **un** proceso: sin ello, ver el
+  visor en vivo y capturar evidencia son excluyentes. **Sin probar:** la rama POSIX de
+  `captura_serie.py` no se ha ejecutado en Linux tras el cambio.
 - El cableado de N1 se reutiliza, pero **subir esta práctica sustituye el sketch
   de N1** en las dos placas: no pueden correr las dos a la vez.
