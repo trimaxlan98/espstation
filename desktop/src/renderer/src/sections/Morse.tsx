@@ -328,6 +328,18 @@ export function Morse(): React.JSX.Element {
           Counts are pulses, not letters. They can match while the letters do not: that means the
           cable is fine and a threshold is wrong — see SPEC-DUPLEX.md.
         </p>
+        {/* Written after a bench run where the two boards agreed on every
+            single pulse to within 1 ms and this panel still said Mismatch:
+            one board had been reflashed and its counter had restarted. The
+            verdict was true about the counters and false about the session,
+            which is the worst kind of correct. */}
+        <p className="section__description morse-note">
+          Both counters run from their own board&apos;s boot and nothing here can reset them, so a
+          board that rebooted — reflashed, replugged, or its port reopened — starts from zero while
+          the other carries on. After that, a mismatch says the two boards have been up for
+          different lengths of time and nothing about the link. Reset both by replugging them, or
+          compare how much each one grows over one exchange.
+        </p>
       </Card>
     </div>
   )

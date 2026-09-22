@@ -349,14 +349,22 @@ Decisión de diseño y sus consecuencias: [`docs/DECISIONS.md`](docs/DECISIONS.m
       reproduciendo la evidencia grabada: 40/40 `morse.symbol` con duración
       (62, 213, 174 … 709, 645 ms) y las 17 letras del log. Antes salían 0/40:
       el adaptador del sketch no ponía `ms` en el evento (arreglado).
-- [ ] **Sin verificar en hardware**: la onda no se ha visto todavía con las dos
-      placas tecleando. Lo que hay son 54 pruebas y una compilación limpia.
+- [x] **Verificado en hardware (2026-09-22)**: las DOS placas con el build
+      post-auditoría (la B reflasheada por COM7), un `SOS` por llave, todo por
+      el gateway y la app. Cruzando `morse.symbol` de la que envía contra la
+      que recibe: misma secuencia en los dos sentidos y **0 ms / 1 ms** de
+      peor discrepancia de duración, `unknown=0`, `filtrados=0`. Tabla en
+      `docs/PRACTICA-MORSE.md` §6.
+- [x] Hallazgo de esa misma tanda: el cruce de integridad decía `Mismatch`
+      siendo las dos placas idénticas al milisegundo, porque `morse.symbols`
+      es acumulativo desde el arranque de cada placa y la B acababa de
+      reflashearse. El panel lo advierte ahora.
 
 Salidas reales:
 
 ```
 gateway:  343 passed                      (eran 285; +58)
-desktop:  13 files, 139 tests passed      (eran 64; +75, de ellos 73 de Morse
+desktop:  13 files, 140 tests passed      (eran 64; +76, de ellos 74 de Morse
           y de los sketches); typecheck y build limpios
 bench:    enlace-digital 91 comprobaciones · clave-morse TODO OK ·
           morse-duplex TODO OK (35) · test_puente 24/0 · test_visor 27/0

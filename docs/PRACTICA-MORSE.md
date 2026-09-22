@@ -351,6 +351,30 @@ sentido) ni corrección de errores.
 Tres sesiones en el banco, un operador con las dos llaves. Evidencia completa en
 [`morse-duplex/evidencia/`](../bench/practicas/morse-duplex/evidencia/).
 
+### 2026-09-22 — las dos placas con el firmware `esps_morse` y la app abierta
+
+Primera tanda con **las dos placas llevando el mismo build post-auditoría** y
+todo pasando por el gateway y la app. Un `SOS` por llave. Cruzando el evento
+`morse.symbol` de la que **envía** contra el de la que **recibe**, pulso a
+pulso:
+
+| Sentido | Secuencia | Duraciones | Peor discrepancia |
+|---|---|---|---|
+| B → A | `... --- ...` idéntica | 127 100 99 · 312 346 343 · 123 112 101 ms | **0 ms** |
+| A → B | `... --- ...` idéntica | 191 188 207 · 351 346 500 · 205 168 195 ms | **1 ms** |
+
+Las dos placas miden la misma señal con **relojes distintos y filtros
+independientes**, así que esa columna es el error del enlace entero. Las dos
+decodificaron `SOS`, con `unknown=0` y `filtrados=0` en la tanda.
+
+> **El cruce de integridad de la app dijo `Mismatch` en esta misma tanda, y
+> tenía razón sobre lo que compara.** `morse.symbols` es acumulativo desde el
+> arranque de **cada** placa y nada lo pone a cero: la B acababa de
+> reflashearse (9) y la A llevaba ocho minutos oyendo tecleo anterior (21).
+> Verdadero sobre los contadores y falso sobre la tanda. El panel lo advierte
+> ahora; para que el cruce signifique algo, las dos placas tienen que haber
+> arrancado a la vez.
+
 **El enlace es transparente.** Las dos tandas con umbrales anotados, en los dos
 sentidos (la tercera —la etapa 1, sin calibrar— está en el
 [README de la práctica](../bench/practicas/morse-duplex/README.md)):
@@ -394,7 +418,7 @@ anchas.
 | `gateway/tests/test_morse_link.py` | vectores dorados; **re-decodifica la evidencia real** y exige las mismas letras que imprimió la placa | 26 pruebas |
 | `gateway/tests/test_morse_sketch.py` | el adaptador; replica **un log entero** en frames válidos y exige que el símbolo lleve su duración | 24 pruebas |
 | `gateway/tests/test_morse_replay_link.py` | reproducción por REST | 5 pruebas |
-| `desktop` | sección Morse, la onda (`morseWave`), la **cadencia** (`morseCadence`), la sección Sketches y la escritura del `.ino` | 73 pruebas |
+| `desktop` | sección Morse, la onda (`morseWave`), la **cadencia** (`morseCadence`), la sección Sketches y la escritura del `.ino` | 74 pruebas |
 | `firmware/test/host` | **`esps_morse` en C11**: tabla, decodificador y llave, con `-Werror` + ASan/UBSan | 3 suites |
 | `pio run -e esp32dev_morse` | el firmware completo, con la mitad ESP-IDF | compila y **corre en las dos placas** |
 | Hardware | las dos placas, en la app, con telemetría real | verificado |

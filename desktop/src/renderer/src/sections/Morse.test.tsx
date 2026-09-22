@@ -388,6 +388,19 @@ describe('Morse section', () => {
     expect(vi.mocked(gatewayClient.getNode)).not.toHaveBeenCalled()
   })
 
+  it('warns that the counters restart with the board, so a mismatch can be a reboot', () => {
+    // A real bench run: the two boards agreed on every pulse to within 1 ms
+    // and this panel still said Mismatch, because one of them had just been
+    // reflashed. True about the counters, false about the session.
+    useNodesStore.setState({ nodes: [node(1, 'P1'), node(2, 'P2')] })
+    const t = useStreamStore.getState().ingestTelemetry
+    t(1, 'morse.symbols', [1, 21])
+    t(2, 'morse.symbols', [1, 9])
+    render(<Morse />)
+    expect(screen.getByText('Mismatch.')).toBeTruthy()
+    expect(screen.getByText(/run from their own board's boot/)).toBeTruthy()
+  })
+
   it('says the counts are pulses, not letters', () => {
     useNodesStore.setState({ nodes: [node(1, 'P1')] })
     render(<Morse />)
