@@ -92,7 +92,7 @@ seguridad, no la excepción.
 
 # Slice fuera de banda — enlace digital entre ESP32
 
-**ESTADO: implementado y verificado SIN hardware; NADA verificado en placa.**
+**ESTADO: implementado y verificado SIN hardware; en placa sólo N1 (2026-09-21).**
 Registrado en `docs/ROADMAP.md` como slice fuera de banda (no es S1). Decisiones:
 D-16 … D-21. Contrato del enlace: `bench/practicas/enlace-digital/SPEC-LINK.md`.
 Prompt para verificar en hardware: `docs/plans/PRACTICA-enlace-digital.hardware-verification.prompt.md`.
@@ -123,10 +123,20 @@ código + protocolo + gates, documentación), **sin push ni merge a `main`**.
 
 ## NO hecho / NO verificado
 
-- [ ] **Todo en hardware**: N1 (5 min + cable desconectado), N2 (RTT 1000
-      intercambios), N3 (BER 1000 tramas + límite de velocidad), y el firmware
-      `esps_dio` en placa. Las secciones `Resultados N1/N2/N3` del README dicen
-      PENDIENTE. **Ninguna cifra de latencia, BER o límite de velocidad existe aún.**
+- [x] **N1 en hardware (2026-09-21, dos ESP32 reales, A=`ttyUSB0` emisor, B=`ttyUSB1`
+      receptor):** 300 s con **0 `ANOMALIA`** (120 cambios/min, 1 Hz); con el cable de
+      señal suelto y `INPUT_PULLDOWN`, nivel 0 estable ≈66,9 s; contraste con `INPUT`
+      sin pull: ≈120 cambios/s (hipótesis: red a 60 Hz, sin medir). Cifras y
+      limitaciones en `README.md` `## Resultados N1`; logs en
+      `bench/practicas/enlace-digital/evidencia/` (**ignorados por `.gitignore:36`
+      `*.log`**). **Límites:** la desconexión se hizo con la línea en 0 (la caída 1→0
+      sólo la muestra el contraste); longitud del cable no medida; **hallazgo abierto:**
+      bloques de 64 bytes `0xFF` y ráfagas `80 00 00` en la captura serie de ambas
+      placas (causa no encontrada, pisan líneas de datos).
+- [ ] **Sin hacer en hardware**: N2 (RTT 1000 intercambios), N3 (BER 1000 tramas +
+      límite de velocidad) y el firmware `esps_dio` en placa. Las secciones
+      `Resultados N2/N3` del README dicen PENDIENTE. **Ninguna cifra de latencia,
+      BER o límite de velocidad existe aún.**
 - [x] **Correcciones a la revisión (2026-09-20), verificadas por el orquestador:**
       **A1, A2, A3, M1, M2, B1, B2 corregidos.** `make check` verde (275 gateway,
       64 desktop, host firmware); `esp32dev`/`dio_a`/`dio_b` compilan;
@@ -230,3 +240,74 @@ código + protocolo + gates, documentación), **sin push ni merge a `main`**.
 - [ ] El estado de `.venv-tools` cambió: ahora Python 3.13 (uv); el de 3.14 quedó
       en el scratchpad de la sesión. `desktop/build/icons/*` siguen borrados en el
       working tree desde antes (no son de este trabajo).
+
+---
+
+# Slice fuera de banda — clave Morse táctil entre dos ESP32
+
+**ESTADO: implementado y verificado en hardware (2026-09-21) con un operador, con resultado PARCIAL y NO ROBUSTO: 2 de 3 `SOS` en la tanda 3, pero 0 de 3 en la tanda 4 con los mismos umbrales.**
+Práctica independiente de `enlace-digital` (no toca `n1_nivel/`, `n2_handshake/` ni
+`n3_bytes/`). Contrato: `bench/practicas/clave-morse/SPEC-MORSE.md`. **Sin commitear.**
+Convención fija: **A = transmisora / llave (`ttyUSB0`), B = receptora / decodificadora
+(`ttyUSB1`)**. Reutiliza el cable A.GPIO26→B.GPIO25 de N1; añade sólo `KEY_PIN` = GPIO13
+en A. Subirla **sustituye el sketch de N1** en las dos placas.
+
+## Hecho y verificado (salida real, esta máquina)
+
+- [x] `transmisor` (273 256 B) y `receptor` (277 240 B) **compilan** con `arduino-cli`
+      1.5.1 + core `esp32:esp32` 3.3.11 y `--warnings all`, sin errores ni advertencias.
+- [x] Lógica en el host: `python3 bench/practicas/clave-morse/tests/run_tests.py` →
+      receptor 18/18, transmisor 7/7, tabla A–Z/0–9 (36 entradas) 0 fallos contra un
+      diccionario Morse independiente. Compila los `.ino` reales con ASan/UBSan sobre
+      un mock del core. **Comprobado con 3 mutaciones** (quitar la bandera de
+      `[palabra]`, romper la entrada `S`, quitar el relleno a 8 bits): las tres
+      hacen fallar el test. No está enchufado a `make check`.
+
+- [x] **En hardware (2026-09-21, dos ESP32 reales, A=`ttyUSB0` llave, B=`ttyUSB1` receptor,
+      llave sin 330 Ω):** el enlace A→B no perdió flancos (`aceptados` de A = `flancos_crudos`
+      de B en las tandas 1, 2 y 4) y B decodifica. **4 tandas de 3 `SOS`:** 0/3 con los umbrales de
+      arranque (300/700/1800/15 ms), 0/3 tras cambiar `p` a 140, **2/3 (letras) tras calibrar
+      con el operador a `p`=170, `l`=930, `w`=3000, `d`(A)=25 ms** y **0/3 en la tanda 4 con esos
+      mismos umbrales congelados** (2 de 6 en total con umbrales congelados). Fallos: pausa entre rayas
+      > `l` (1037 y 1001 ms), hueco entre SOS < `w` (2467 ms) y 2 errores de tecleo del operador
+      (a un SOS le falta la primera S; otro salió `O O U`).
+      **Antirrebote:** con `d`=15 un toque dio 2 pulsos (hueco de 19 ms; 27 toques → 28
+      pulsos); con `d`=25, 27 toques → 27 pulsos (una sola tanda). Cifras, límites y
+      logs en `bench/practicas/clave-morse/README.md` `## Resultados` y `evidencia/`
+      (**ignorados por `.gitignore:36` `*.log`**).
+
+## NO hecho / NO verificado
+
+- [ ] **No es robusto:** un solo operador y 4 tandas; el ritmo del operador cambió ~2× entre
+      tandas y los márgenes de `letra_ms` son de ~80 ms. **2/3 no es una tasa de acierto.**
+      Los umbrales finales se aplicaron por serie y **no están en el firmware** (tras un
+      reset vuelven a 300/700/1800/15).
+- [ ] **Tandas 1 y 4: toques no contados** (el operador no sabe cuántos dio): su prueba de
+      rebote es indeterminable. **Anomalía sin explicar** entre las tandas 3 y 4: A +8 flancos aceptados y B +2 sin captura. **`d`=25 validado en una sola tanda.**
+- [ ] **Sin medir:** latencia de la ISR, longitud del cable, cualquier cosa con
+      instrumento. **Hallazgo abierto:** en la tanda 3, B contó 55 activaciones de ISR
+      frente a 54 flancos aceptados por A (`niveles_repetidos=1`); causa no determinada.
+      **Hallazgo abierto (mismo que N1):** bloques de 64 bytes `0xFF` en la captura serie; en la tanda 4 se añadió una ráfaga
+      de ≈781 KB en ≈3 s (≈260 KB/s, imposible por una UART a 115200) al abrir el puerto de A. Hipótesis: driver/capa USB del PC
+      (64 B = paquete USB full-speed); **no comprobada**.
+- [ ] Extensiones mías sobre el prompt, a revisar: comandos `d<ms>` (A y B), `v`
+      (verbose) y `c` (contadores a cero); en el formato, `[letra: X] [bin: …]` (el
+      `SOS` del ejemplo del prompt lo interpreté como nombre del caso de prueba, no
+      como campo) y `[palabra]` como separador.
+
+## Entrega para el evaluador (2026-09-21)
+
+- [x] `INFORME.md` / `INFORME.pdf` (circuito, justificación de cada cable/resistencia/pin, **énfasis en el GND común**,
+      pasos para replicar, resultados y límites), `docs/circuito.svg|png`, `visor/index.html` (**interfaz gráfica autónoma**:
+      traducción a puntos/rayas/binario, teclear en vivo, las 4 tandas con la salida real de la placa, circuito y GND).
+- [x] `tests/replay_evidencia.py`: el `receptor.ino` compilado en el PC reproduce **exactamente** los 163 eventos que imprimió la placa
+      real en las 4 tandas, y el port JS del visor coincide (400 secuencias aleatorias con valores en los límites: 0 diferencias;
+      2 mutaciones hacen fallar la prueba). **No prueba la temporización real del microcontrolador.**
+- [x] **Pestaña «En vivo» del visor + `herramientas/puente_serie.py`** (2026-09-21): muestra el circuito REAL en tiempo real (llave de A, señal, símbolo
+      y letra+byte que imprime B, umbrales/contadores, consolas). Probado en el banco: conecta limpio y A aceptó 128 flancos = B contó 128.
+      `tests/test_puente.py` (24 pruebas): en demo, lo que llega por SSE == lo que imprimió la placa real (39/36 eventos) y los flancos de A
+      == contadores (54/48). **Hallazgo:** al abrir un puerto ya usado llega una ráfaga de líneas viejas repetidas (≈40 `[palabra]` falsos);
+      el puente vacía hasta silencio + guarda de tasa. Causa **no comprobada** (driver/USB del PC).
+      **No verificado:** el visor en Firefox con las placas reales (solo Chromium headless con la demo); la latencia A→B (no se mide).
+- [ ] **El visor no está integrado en la app de escritorio** a propósito: estas placas no hablan ENLP, así que la app no recibe sus datos.
+- [ ] **Sin commitear**, y el `.zip` de entrega no está versionado. `.gitignore:36` (`*.log`) ignora la evidencia.

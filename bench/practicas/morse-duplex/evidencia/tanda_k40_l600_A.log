@@ -1,0 +1,447 @@
+    0.719 # umbrales RX punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15
+    0.726 # umbrales TX punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15
+    0.736 # contadores RX puntos=0 rayas=0 letras=0 desconocidas=0 filtrados=0 niveles_repetidos=0 flancos_crudos=0 desbordes_buffer=0
+    0.745 # contadores TX puntos=0 rayas=0 letras=0 desconocidas=0 filtrados=0 niveles_repetidos=0
+    0.747 # llave debounce_ms=15 crudos=0 aceptados=0
+    0.755 # modo eco_local=1 verbose=0
+   26.943 >>> w1800
+   26.955 # umbrales RX punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15
+   27.176 >>> l600
+   27.188 # umbrales RX punto_raya_ms=300 letra_ms=600 palabra_ms=1800 debounce_ms=15
+   27.301 >>> p300
+   27.313 # umbrales RX punto_raya_ms=300 letra_ms=600 palabra_ms=1800 debounce_ms=15
+   27.539 >>> d40
+   27.550 # umbrales RX punto_raya_ms=300 letra_ms=600 palabra_ms=1800 debounce_ms=40
+   27.773 >>> k40
+   27.782 # umbrales RX punto_raya_ms=300 letra_ms=600 palabra_ms=1800 debounce_ms=40
+   27.788 # umbrales TX punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15
+   27.799 # contadores RX puntos=0 rayas=0 letras=0 desconocidas=0 filtrados=0 niveles_repetidos=0 flancos_crudos=0 desbordes_buffer=0
+   27.807 # contadores TX puntos=0 rayas=0 letras=0 desconocidas=0 filtrados=0 niveles_repetidos=0
+   27.812 # llave debounce_ms=40 crudos=0 aceptados=0
+   27.812 # modo eco_local=1 verbose=0
+   27.914 >>> tw1800
+   27.926 # umbrales TX punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15
+   28.149 >>> tl600
+   28.160 # umbrales TX punto_raya_ms=300 letra_ms=600 palabra_ms=1800 debounce_ms=15
+   28.382 >>> tp300
+   28.394 # umbrales TX punto_raya_ms=300 letra_ms=600 palabra_ms=1800 debounce_ms=15
+   28.615 >>> td40
+   28.626 # umbrales TX punto_raya_ms=300 letra_ms=600 palabra_ms=1800 debounce_ms=40
+   28.741 >>> v
+   28.751 # umbrales RX punto_raya_ms=300 letra_ms=600 palabra_ms=1800 debounce_ms=40
+   28.756 # umbrales TX punto_raya_ms=300 letra_ms=600 palabra_ms=1800 debounce_ms=40
+   28.766 # contadores RX puntos=0 rayas=0 letras=0 desconocidas=0 filtrados=0 niveles_repetidos=0 flancos_crudos=0 desbordes_buffer=0
+   28.774 # contadores TX puntos=0 rayas=0 letras=0 desconocidas=0 filtrados=0 niveles_repetidos=0
+   28.778 # llave debounce_ms=40 crudos=0 aceptados=0
+   28.782 # modo eco_local=1 verbose=1
+   29.006 >>> c
+   29.010 # contadores a cero
+   29.225 >>> r
+   29.234 # umbrales RX punto_raya_ms=300 letra_ms=600 palabra_ms=1800 debounce_ms=40
+   29.240 # umbrales TX punto_raya_ms=300 letra_ms=600 palabra_ms=1800 debounce_ms=40
+   29.251 # contadores RX puntos=0 rayas=0 letras=0 desconocidas=0 filtrados=0 niveles_repetidos=0 flancos_crudos=0 desbordes_buffer=0
+   29.259 # contadores TX puntos=0 rayas=0 letras=0 desconocidas=0 filtrados=0 niveles_repetidos=0
+   29.262 # llave debounce_ms=40 crudos=0 aceptados=0
+   29.268 # modo eco_local=1 verbose=1
+   49.018 #MARK INICIO TANDA k40 d40 l600 - umbrales congelados, dashboard en vivo
+  471.864 # TX flanco t_ms=471722 nivel=1
+  471.929 # TX flanco t_ms=471785 nivel=0
+  471.930 TX .
+  471.931 # TX pulso_ms=62
+  472.531 TX [letra: E] [bin: 01000101]
+  472.549 # TX flanco t_ms=472406 nivel=1
+  472.549 # TX silencio_ms=621
+  472.765 # TX flanco t_ms=472620 nivel=0
+  472.765 TX .
+  472.767 # TX pulso_ms=213
+  473.366 TX [letra: E] [bin: 01000101]
+  473.390 # TX flanco t_ms=473247 nivel=1
+  473.391 # TX silencio_ms=627
+  473.566 # TX flanco t_ms=473422 nivel=0
+  473.567 TX .
+  473.568 # TX pulso_ms=174
+  474.168 TX [letra: E] [bin: 01000101]
+  475.195 # resumen t_ms=475044 llave_crudos=26 llave_aceptados=6 rx_flancos_crudos=0 nivel_tx=0 nivel_rx=0
+  475.364 TX [palabra]
+  490.261 # TX flanco t_ms=490118 nivel=1
+  490.262 # TX silencio_ms=16696
+  490.498 # TX flanco t_ms=490353 nivel=0
+  490.498 TX .
+  490.499 # TX pulso_ms=235
+  490.898 # TX flanco t_ms=490755 nivel=1
+  490.898 # TX silencio_ms=401
+  491.047 # TX flanco t_ms=490904 nivel=0
+  491.048 TX .
+  491.049 # TX pulso_ms=148
+  491.536 # TX flanco t_ms=491391 nivel=1
+  491.537 # TX silencio_ms=487
+  491.664 # TX flanco t_ms=491519 nivel=0
+  491.664 TX .
+  491.665 # TX pulso_ms=127
+  492.263 TX [letra: S] [bin: 01010011]
+  493.463 TX [palabra]
+  494.046 # TX flanco t_ms=493903 nivel=1
+  494.047 # TX silencio_ms=2383
+  494.171 # TX flanco t_ms=494028 nivel=0
+  494.171 TX .
+  494.172 # TX pulso_ms=125
+  494.564 # TX flanco t_ms=494418 nivel=1
+  494.564 # TX silencio_ms=390
+  495.192 # resumen t_ms=495044 llave_crudos=55 llave_aceptados=15 rx_flancos_crudos=0 nivel_tx=1 nivel_rx=0
+  495.270 # TX flanco t_ms=495127 nivel=0
+  495.270 TX -
+  495.271 # TX pulso_ms=709
+  495.572 # TX flanco t_ms=495426 nivel=1
+  495.572 # TX silencio_ms=298
+  496.215 # TX flanco t_ms=496071 nivel=0
+  496.216 TX -
+  496.216 # TX pulso_ms=645
+  496.816 TX [letra: W] [bin: 01010111]
+  496.935 # TX flanco t_ms=496792 nivel=1
+  496.936 # TX silencio_ms=721
+  497.054 # TX flanco t_ms=496911 nivel=0
+  497.054 TX .
+  497.054 # TX pulso_ms=118
+  497.355 # TX flanco t_ms=497211 nivel=1
+  497.356 # TX silencio_ms=300
+  497.460 # TX flanco t_ms=497315 nivel=0
+  497.460 TX .
+  497.461 # TX pulso_ms=103
+  497.947 # TX flanco t_ms=497804 nivel=1
+  497.949 # TX silencio_ms=489
+  498.066 # TX flanco t_ms=497921 nivel=0
+  498.066 TX .
+  498.067 # TX pulso_ms=116
+  498.399 # TX flanco t_ms=498256 nivel=1
+  498.399 # TX silencio_ms=335
+  498.939 # TX flanco t_ms=498796 nivel=0
+  498.939 TX -
+  498.940 # TX pulso_ms=539
+  499.541 TX [letra: V] [bin: 01010110]
+  499.668 # TX flanco t_ms=499523 nivel=1
+  499.669 # TX silencio_ms=727
+  500.182 # TX flanco t_ms=500040 nivel=0
+  500.183 TX -
+  500.183 # TX pulso_ms=516
+  500.191 # resumen t_ms=500044 llave_crudos=84 llave_aceptados=28 rx_flancos_crudos=0 nivel_tx=0 nivel_rx=0
+  500.785 TX [letra: T] [bin: 01010100]
+  501.983 TX [palabra]
+  507.511 # TX flanco t_ms=507366 nivel=1
+  507.512 # TX silencio_ms=7325
+  507.942 # TX flanco t_ms=507797 nivel=0
+  507.942 TX -
+  507.943 # TX pulso_ms=431
+  508.195 # TX flanco t_ms=508052 nivel=1
+  508.196 # TX silencio_ms=254
+  508.745 # TX flanco t_ms=508600 nivel=0
+  508.745 TX -
+  508.746 # TX pulso_ms=548
+  509.274 # TX flanco t_ms=509132 nivel=1
+  509.275 # TX silencio_ms=532
+  509.525 # TX flanco t_ms=509382 nivel=0
+  509.525 TX .
+  509.526 # TX pulso_ms=249
+  510.126 TX [letra: G] [bin: 01000111]
+  510.190 # resumen t_ms=510044 llave_crudos=112 llave_aceptados=34 rx_flancos_crudos=0 nivel_tx=0 nivel_rx=0
+  511.323 TX [palabra]
+  539.915 # TX flanco t_ms=539773 nivel=1
+  539.915 # TX silencio_ms=30391
+  540.054 # TX flanco t_ms=539912 nivel=0
+  540.054 TX .
+  540.056 # TX pulso_ms=138
+  540.190 # resumen t_ms=540044 llave_crudos=114 llave_aceptados=36 rx_flancos_crudos=0 nivel_tx=0 nivel_rx=0
+  540.655 TX [letra: E] [bin: 01000101]
+  541.167 # TX flanco t_ms=541025 nivel=1
+  541.168 # TX silencio_ms=1113
+  541.298 # TX flanco t_ms=541157 nivel=0
+  541.298 TX .
+  541.299 # TX pulso_ms=131
+  541.900 TX [letra: E] [bin: 01000101]
+  542.460 # TX flanco t_ms=542319 nivel=1
+  542.461 # TX silencio_ms=1162
+  542.511 # TX flanco t_ms=542370 nivel=0
+  542.512 TX .
+  542.514 # TX pulso_ms=50
+  543.113 TX [letra: E] [bin: 01000101]
+  543.683 # TX flanco t_ms=543538 nivel=1
+  543.683 # TX silencio_ms=1168
+  544.192 # TX flanco t_ms=544051 nivel=0
+  544.193 TX -
+  544.194 # TX pulso_ms=512
+  544.794 TX [letra: T] [bin: 01010100]
+  545.019 # TX flanco t_ms=544877 nivel=1
+  545.019 # TX silencio_ms=826
+  545.188 # resumen t_ms=545044 llave_crudos=139 llave_aceptados=43 rx_flancos_crudos=0 nivel_tx=1 nivel_rx=0
+  545.506 # TX flanco t_ms=545364 nivel=0
+  545.506 TX -
+  545.507 # TX pulso_ms=486
+  546.107 TX [letra: T] [bin: 01010100]
+  546.674 # TX flanco t_ms=546530 nivel=1
+  546.674 # TX silencio_ms=1165
+  547.236 # TX flanco t_ms=547095 nivel=0
+  547.237 TX -
+  547.237 # TX pulso_ms=565
+  547.838 TX [letra: T] [bin: 01010100]
+  548.998 # TX flanco t_ms=548857 nivel=1
+  548.999 # TX silencio_ms=1762
+  549.166 # TX flanco t_ms=549025 nivel=0
+  549.166 TX .
+  549.166 # TX pulso_ms=167
+  549.509 # TX flanco t_ms=549365 nivel=1
+  549.510 # TX silencio_ms=339
+  549.638 # TX flanco t_ms=549496 nivel=0
+  549.638 TX .
+  549.639 # TX pulso_ms=131
+  550.006 # TX flanco t_ms=549865 nivel=1
+  550.007 # TX silencio_ms=369
+  550.115 # TX flanco t_ms=549972 nivel=0
+  550.116 TX .
+  550.116 # TX pulso_ms=106
+  550.188 # resumen t_ms=550044 llave_crudos=170 llave_aceptados=52 rx_flancos_crudos=0 nivel_tx=0 nivel_rx=0
+  550.715 TX [letra: S] [bin: 01010011]
+  551.914 TX [palabra]
+  552.719 # TX flanco t_ms=552575 nivel=1
+  552.719 # TX silencio_ms=2603
+  552.871 # TX flanco t_ms=552730 nivel=0
+  552.872 TX .
+  552.873 # TX pulso_ms=155
+  553.142 # TX flanco t_ms=553001 nivel=1
+  553.143 # TX silencio_ms=271
+  553.279 # TX flanco t_ms=553138 nivel=0
+  553.280 TX .
+  553.281 # TX pulso_ms=137
+  553.545 # TX flanco t_ms=553404 nivel=1
+  553.546 # TX silencio_ms=266
+  553.686 # TX flanco t_ms=553544 nivel=0
+  553.687 TX .
+  553.687 # TX pulso_ms=140
+  554.193 # TX flanco t_ms=554052 nivel=1
+  554.195 # TX silencio_ms=508
+  554.701 # TX flanco t_ms=554560 nivel=0
+  554.702 TX -
+  554.702 # TX pulso_ms=507
+  555.191 # resumen t_ms=555044 llave_crudos=212 llave_aceptados=60 rx_flancos_crudos=0 nivel_tx=0 nivel_rx=0
+  555.257 # TX flanco t_ms=555117 nivel=1
+  555.258 # TX silencio_ms=556
+  555.716 # TX flanco t_ms=555572 nivel=0
+  555.716 TX -
+  555.716 # TX pulso_ms=455
+  556.286 # TX flanco t_ms=556143 nivel=1
+  556.286 # TX silencio_ms=570
+  556.851 # TX flanco t_ms=556707 nivel=0
+  556.851 TX -
+  556.852 # TX pulso_ms=564
+  557.449 TX [letra: ?] [morse: ...---]
+  557.619 # TX flanco t_ms=557478 nivel=1
+  557.620 # TX silencio_ms=771
+  557.746 # TX flanco t_ms=557602 nivel=0
+  557.746 TX .
+  557.747 # TX pulso_ms=123
+  558.007 # TX flanco t_ms=557866 nivel=1
+  558.008 # TX silencio_ms=264
+  558.124 # TX flanco t_ms=557981 nivel=0
+  558.125 TX .
+  558.126 # TX pulso_ms=114
+  558.358 # TX flanco t_ms=558215 nivel=1
+  558.358 # TX silencio_ms=233
+  558.456 # TX flanco t_ms=558315 nivel=0
+  558.456 TX .
+  558.457 # TX pulso_ms=100
+  559.057 TX [letra: S] [bin: 01010011]
+  560.191 # resumen t_ms=560044 llave_crudos=234 llave_aceptados=70 rx_flancos_crudos=0 nivel_tx=0 nivel_rx=0
+  560.255 TX [palabra]
+  560.827 # TX flanco t_ms=560684 nivel=1
+  560.827 # TX silencio_ms=2369
+  561.545 # TX flanco t_ms=561402 nivel=0
+  561.545 TX -
+  561.545 # TX pulso_ms=717
+  562.000 # TX flanco t_ms=561860 nivel=1
+  562.001 # TX silencio_ms=458
+  562.686 # TX flanco t_ms=562543 nivel=0
+  562.686 TX -
+  562.687 # TX pulso_ms=683
+  563.118 # TX flanco t_ms=562977 nivel=1
+  563.119 # TX silencio_ms=433
+  563.499 # TX flanco t_ms=563357 nivel=0
+  563.500 TX -
+  563.500 # TX pulso_ms=380
+  564.099 TX [letra: O] [bin: 01001111]
+  564.267 # TX flanco t_ms=564126 nivel=1
+  564.268 # TX silencio_ms=769
+  564.359 # TX flanco t_ms=564220 nivel=0
+  564.360 TX .
+  564.361 # TX pulso_ms=93
+  564.610 # TX flanco t_ms=564469 nivel=1
+  564.610 # TX silencio_ms=249
+  564.711 # TX flanco t_ms=564569 nivel=0
+  564.711 TX .
+  564.711 # TX pulso_ms=99
+  565.027 # TX flanco t_ms=564886 nivel=1
+  565.027 # TX silencio_ms=317
+  565.116 # TX flanco t_ms=564975 nivel=0
+  565.116 TX .
+  565.117 # TX pulso_ms=88
+  565.188 # resumen t_ms=565044 llave_crudos=274 llave_aceptados=82 rx_flancos_crudos=0 nivel_tx=0 nivel_rx=0
+  565.717 TX [letra: S] [bin: 01010011]
+  566.916 TX [palabra]
+  568.824 RX .
+  568.825 # RX pulso_ms=216
+  569.321 # RX silencio_ms=495
+  569.540 RX .
+  569.541 # RX pulso_ms=220
+  570.036 # RX silencio_ms=496
+  570.189 # resumen t_ms=570044 llave_crudos=274 llave_aceptados=82 rx_flancos_crudos=5 nivel_tx=0 nivel_rx=1
+  570.238 RX .
+  570.239 # RX pulso_ms=205
+  570.838 RX [letra: S] [bin: 01010011]
+  570.989 # RX silencio_ms=749
+  571.487 RX -
+  571.489 # RX pulso_ms=498
+  571.951 # RX silencio_ms=464
+  572.446 RX -
+  572.446 # RX pulso_ms=495
+  572.949 # RX silencio_ms=503
+  573.326 RX -
+  573.327 # RX pulso_ms=376
+  573.927 RX [letra: O] [bin: 01001111]
+  574.454 # RX silencio_ms=1126
+  574.554 RX .
+  574.554 # RX pulso_ms=101
+  574.795 # RX silencio_ms=243
+  574.909 RX .
+  574.911 # RX pulso_ms=113
+  575.189 # resumen t_ms=575044 llave_crudos=274 llave_aceptados=82 rx_flancos_crudos=16 nivel_tx=0 nivel_rx=0
+  575.191 # RX silencio_ms=285
+  575.311 RX .
+  575.312 # RX pulso_ms=119
+  575.914 RX [letra: S] [bin: 01010011]
+  576.036 # RX silencio_ms=723
+  576.516 RX -
+  576.518 # RX pulso_ms=481
+  577.062 # RX silencio_ms=548
+  577.583 RX -
+  577.584 # RX pulso_ms=519
+  578.076 # RX silencio_ms=493
+  578.644 RX -
+  578.646 # RX pulso_ms=567
+  579.245 RX [letra: O] [bin: 01001111]
+  579.432 # RX silencio_ms=790
+  579.526 RX .
+  579.526 # RX pulso_ms=88
+  579.730 # RX silencio_ms=208
+  579.835 RX .
+  579.837 # RX pulso_ms=105
+  580.061 # RX silencio_ms=227
+  580.193 # resumen t_ms=580044 llave_crudos=274 llave_aceptados=82 rx_flancos_crudos=29 nivel_tx=0 nivel_rx=1
+  580.194 RX .
+  580.196 # RX pulso_ms=126
+  580.789 RX [letra: S] [bin: 01010011]
+  581.988 RX [palabra]
+  583.142 # RX silencio_ms=2953
+  583.255 RX .
+  583.256 # RX pulso_ms=113
+  583.475 # RX silencio_ms=223
+  583.586 RX .
+  583.587 # RX pulso_ms=111
+  583.834 # RX silencio_ms=247
+  584.025 RX .
+  584.026 # RX pulso_ms=190
+  584.353 # RX silencio_ms=330
+  585.179 RX -
+  585.180 # RX pulso_ms=826
+  585.189 # resumen t_ms=585044 llave_crudos=274 llave_aceptados=82 rx_flancos_crudos=38 nivel_tx=0 nivel_rx=0
+  585.398 # RX silencio_ms=216
+  585.968 RX -
+  585.969 # RX pulso_ms=571
+  586.312 # RX silencio_ms=344
+  586.922 RX -
+  586.923 # RX pulso_ms=610
+  587.522 RX [letra: ?] [morse: ...---]
+  587.545 # RX silencio_ms=625
+  587.628 RX .
+  587.629 # RX pulso_ms=82
+  587.798 # RX silencio_ms=171
+  587.908 RX .
+  587.908 # RX pulso_ms=108
+  588.141 # RX silencio_ms=234
+  588.253 RX .
+  588.254 # RX pulso_ms=112
+  588.855 RX [letra: S] [bin: 01010011]
+  590.053 RX [palabra]
+  590.190 # resumen t_ms=590044 llave_crudos=274 llave_aceptados=82 rx_flancos_crudos=48 nivel_tx=0 nivel_rx=0
+  627.530 # TX flanco t_ms=627389 nivel=1
+  627.532 # TX silencio_ms=62414
+  627.705 # TX flanco t_ms=627566 nivel=0
+  627.706 TX .
+  627.707 # TX pulso_ms=177
+  627.955 # TX flanco t_ms=627817 nivel=1
+  627.957 # TX silencio_ms=250
+  628.006 # TX flanco t_ms=627866 nivel=0
+  628.006 TX .
+  628.006 # TX pulso_ms=49
+  628.491 # TX flanco t_ms=628352 nivel=1
+  628.491 # TX silencio_ms=486
+  628.554 # TX flanco t_ms=628415 nivel=0
+  628.555 TX .
+  628.556 # TX pulso_ms=62
+  629.155 TX [letra: S] [bin: 01010011]
+  629.585 # TX flanco t_ms=629446 nivel=1
+  629.585 # TX silencio_ms=1031
+  630.129 # TX flanco t_ms=629989 nivel=0
+  630.129 TX -
+  630.130 # TX pulso_ms=542
+  630.187 # resumen t_ms=630044 llave_crudos=292 llave_aceptados=90 rx_flancos_crudos=48 nivel_tx=0 nivel_rx=0
+  630.496 # TX flanco t_ms=630358 nivel=1
+  630.497 # TX silencio_ms=369
+  630.982 # TX flanco t_ms=630840 nivel=0
+  630.982 TX -
+  630.983 # TX pulso_ms=481
+  631.521 # TX flanco t_ms=631380 nivel=1
+  631.522 # TX silencio_ms=540
+  631.984 # TX flanco t_ms=631842 nivel=0
+  631.984 TX -
+  631.985 # TX pulso_ms=461
+  632.581 TX [letra: O] [bin: 01001111]
+  633.143 # TX flanco t_ms=633003 nivel=1
+  633.145 # TX silencio_ms=1161
+  633.249 # TX flanco t_ms=633111 nivel=0
+  633.250 TX .
+  633.251 # TX pulso_ms=107
+  633.611 # TX flanco t_ms=633472 nivel=1
+  633.611 # TX silencio_ms=361
+  633.681 # TX flanco t_ms=633543 nivel=0
+  633.682 TX .
+  633.683 # TX pulso_ms=70
+  634.282 TX [letra: I] [bin: 01001001]
+  635.189 # resumen t_ms=635044 llave_crudos=318 llave_aceptados=98 rx_flancos_crudos=48 nivel_tx=0 nivel_rx=0
+  635.482 TX [palabra]
+  642.428 # RX silencio_ms=54175
+  642.790 RX -
+  642.792 # RX pulso_ms=362
+  643.097 # RX silencio_ms=307
+  643.304 RX .
+  643.306 # RX pulso_ms=207
+  643.633 # RX silencio_ms=328
+  643.809 RX .
+  643.810 # RX pulso_ms=176
+  644.314 # RX silencio_ms=508
+  644.817 RX -
+  644.818 # RX pulso_ms=500
+  645.038 # RX silencio_ms=222
+  645.186 # resumen t_ms=645044 llave_crudos=318 llave_aceptados=98 rx_flancos_crudos=57 nivel_tx=0 nivel_rx=1
+  645.407 RX -
+  645.407 # RX pulso_ms=368
+  645.690 # RX silencio_ms=283
+  646.048 RX -
+  646.049 # RX pulso_ms=358
+  646.649 RX [letra: ?] [morse: -..---]
+  647.849 RX [palabra]
+  650.187 # resumen t_ms=650044 llave_crudos=318 llave_aceptados=98 rx_flancos_crudos=60 nivel_tx=0 nivel_rx=0
+  668.593 #MARK FIN TANDA k40 d40 l600
+  669.577 >>> r
+  669.585 # umbrales RX punto_raya_ms=300 letra_ms=600 palabra_ms=1800 debounce_ms=40
+  669.591 # umbrales TX punto_raya_ms=300 letra_ms=600 palabra_ms=1800 debounce_ms=40
+  669.603 # contadores RX puntos=17 rayas=13 letras=6 desconocidas=2 filtrados=0 niveles_repetidos=0 flancos_crudos=60 desbordes_buffer=0
+  669.611 # contadores TX puntos=31 rayas=18 letras=21 desconocidas=1 filtrados=0 niveles_repetidos=0
+  669.616 # llave debounce_ms=40 crudos=318 aceptados=98
+  669.620 # modo eco_local=1 verbose=1

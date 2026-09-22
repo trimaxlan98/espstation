@@ -1,0 +1,62 @@
+  683.342 693134,0,500
+  685.221 # resumen t_ms=695010 cambios=1387 anomalias=0 nivel=0
+  690.221 # resumen t_ms=700010 cambios=1387 anomalias=0 nivel=0
+  695.222 # resumen t_ms=705010 cambios=1387 anomalias=0 nivel=0
+  700.222 # resumen t_ms=710010 cambios=1387 anomalias=0 nivel=0
+  705.222 # resumen t_ms=715010 cambios=1387 anomalias=0 nivel=0
+  710.222 # resumen t_ms=720010 cambios=1387 anomalias=0 nivel=0
+  715.223 # resumen t_ms=725010 cambios=1387 anomalias=0 nivel=0
+  720.223 # resumen t_ms=730010 cambios=1387 anomalias=0 nivel=0
+  725.224 # resumen t_ms=735010 cambios=1387 anomalias=0 nivel=0
+  730.224 # resumen t_ms=740010 cambios=1387 anomalias=0 nivel=0
+  735.224 # resumen t_ms=745010 cambios=1387 anomalias=0 nivel=0
+  740.224 # resumen t_ms=750010 cambios=1387 anomalias=0 nivel=0
+  745.225 # resumen t_ms=755010 cambios=1387 anomalias=0 nivel=0
+  750.225 # resumen t_ms=760010 cambios=1387 anomalias=0 nivel=0
+  755.225 # resumen t_ms=765010 cambios=1387 anomalias=0 nivel=0
+  760.226 # resumen t_ms=770010 cambios=1387 anomalias=0 nivel=0
+  765.226 # resumen t_ms=775010 cambios=1387 anomalias=0 nivel=0
+  770.226 # resumen t_ms=780010 cambios=1387 anomalias=0 nivel=0
+  775.226 # resumen t_ms=785010 cambios=1387 anomalias=0 nivel=0
+  780.227 # resumen t_ms=790010 cambios=1387 anomalias=0 nivel=0
+  785.227 # resumen t_ms=795010 cambios=1387 anomalias=0 nivel=0
+  788.160 797945,1,104811,ANOMALIA
+  788.341 798126,0,181,ANOMALIA
+  788.840 798626,1,500
+  789.187 798971,0,345,ANOMALIA
+  789.189 798971,1,0,ANOMALIA
+  789.192 798971,0,0,ANOMALIA
+  789.192 798972,1,1,ANOMALIA
+  789.193 798972,0,0,ANOMALIA
+  790.227 # resumen t_ms=800010 cambios=1395 anomalias=7 nivel=0
+  795.228 # resumen t_ms=805010 cambios=1395 anomalias=7 nivel=0
+  800.228 # resumen t_ms=810010 cambios=1395 anomalias=7 nivel=0
+  805.230 ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ95 anomalias=7 nivel=0
+  810.229 # resumen t_ms=820010 cambios=1395 anomalias=7 nivel=0
+  815.229 # resumen t_ms=825010 cambios=1395 anomalias=7 nivel=0
+  819.338 829121,1,30149,ANOMALIA
+  819.341 829124,0,3,ANOMALIA
+  820.179 829963,1,839,ANOMALIA
+  820.229 # resumen t_ms=830010 cambios=1398 anomalias=10 nivel=1
+  820.341 830124,0,161,ANOMALIA
+  820.840 830624,1,500
+  821.340 831124,0,500
+  821.840 831624,1,500
+  822.340 832124,0,500
+  822.840 832624,1,500
+  823.340 833124,0,500
+  823.840 833624,1,500
+  824.340 834124,0,500
+  824.840 834624,1,500
+  825.229 # resumen t_ms=835010 cambios=1408 anomalias=11 nivel=1
+  825.340 835124,0,500
+  825.840 835624,1,500
+  826.340 836124,0,500
+  826.840 836624,1,500
+  827.340 837124,0,500
+  827.840 837624,1,500
+  828.340 838124,0,500
+  828.840 838624,1,500
+  829.340 839124,0,500
+  829.840 839623,1,499
+  830.230 # resumen t_ms=840010 cambios=1418 anomalias=11 nivel=1

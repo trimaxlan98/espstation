@@ -1,0 +1,686 @@
+    0.710 # umbrales punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15 verbose=0
+    0.723 # contadores flancos_crudos=0 filtrados=0 puntos=0 rayas=0 letras=0 desconocidas=0 desbordes_buffer=0 niveles_repetidos=0
+   19.403 #MARK SESION LIMPIA - B reflasheada desde Windows, suspension USB desactivada
+   19.403 >>> v
+   19.414 # umbrales punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15 verbose=1
+  146.552 -
+  146.552 # pulso_ms=554
+  147.254 [letra: T] [bin: 01010100]
+  147.643 # silencio_ms=1090
+  148.003 -
+  148.004 # pulso_ms=359
+  148.702 # silencio_ms=698
+  149.078 -
+  149.079 # pulso_ms=375
+  149.778 [letra: M] [bin: 01001101]
+  150.374 # silencio_ms=1294
+  150.464 .
+  150.465 # pulso_ms=90
+  150.739 # silencio_ms=274
+  150.839 .
+  150.840 # pulso_ms=99
+  151.125 # silencio_ms=285
+  151.226 .
+  151.226 # pulso_ms=100
+  151.557 # silencio_ms=328
+  151.655 .
+  151.656 # pulso_ms=98
+  152.354 [letra: H] [bin: 01001000]
+  153.453 [palabra]
+  310.100 # silencio_ms=158437
+  310.186 .
+  310.186 # pulso_ms=88
+  310.523 # silencio_ms=335
+  310.620 .
+  310.628 # pulso_ms=97
+  310.934 # silencio_ms=312
+  311.017 .
+  311.018 # pulso_ms=83
+  311.720 [letra: S] [bin: 01010011]
+  312.672 # silencio_ms=1654
+  312.719 .
+  312.720 # pulso_ms=48
+  313.422 [letra: E] [bin: 01000101]
+  313.677 # silencio_ms=955
+  313.753 .
+  313.754 # pulso_ms=75
+  313.777 # silencio_ms=23
+  313.975 .
+  313.977 # pulso_ms=197
+  314.677 [letra: I] [bin: 01001001]
+  315.775 [palabra]
+  317.132 # silencio_ms=3156
+  317.186 .
+  317.186 # pulso_ms=53
+  317.540 # silencio_ms=351
+  317.609 .
+  317.610 # pulso_ms=73
+  317.929 # silencio_ms=316
+  317.986 .
+  317.986 # pulso_ms=58
+  318.691 [letra: S] [bin: 01010011]
+  319.256 # silencio_ms=1267
+  319.448 .
+  319.448 # pulso_ms=190
+  320.149 [letra: E] [bin: 01000101]
+  320.180 # silencio_ms=734
+  320.599 -
+  320.600 # pulso_ms=418
+  321.138 # silencio_ms=536
+  321.509 -
+  321.509 # pulso_ms=370
+  321.932 # silencio_ms=420
+  322.286 -
+  322.287 # pulso_ms=356
+  322.986 [letra: O] [bin: 01001111]
+  324.040 # silencio_ms=1752
+  324.149 .
+  324.150 # pulso_ms=108
+  324.442 # silencio_ms=291
+  324.491 .
+  324.492 # pulso_ms=51
+  324.835 # silencio_ms=340
+  324.888 .
+  324.888 # pulso_ms=53
+  325.590 [letra: S] [bin: 01010011]
+  326.685 [palabra]
+  328.042 # silencio_ms=3153
+  328.154 .
+  328.156 # pulso_ms=112
+  328.457 # silencio_ms=301
+  328.498 .
+  328.499 # pulso_ms=42
+  328.865 # silencio_ms=364
+  328.935 .
+  328.935 # pulso_ms=69
+  329.637 [letra: S] [bin: 01010011]
+  330.643 # silencio_ms=1707
+  331.117 -
+  331.118 # pulso_ms=474
+  331.418 # silencio_ms=299
+  331.895 -
+  331.895 # pulso_ms=476
+  332.235 # silencio_ms=341
+  332.635 -
+  332.635 # pulso_ms=397
+  333.336 [letra: O] [bin: 01001111]
+  334.089 # silencio_ms=1453
+  334.185 .
+  334.185 # pulso_ms=95
+  334.825 # silencio_ms=637
+  334.914 .
+  334.915 # pulso_ms=88
+  335.201 # silencio_ms=290
+  335.271 .
+  335.271 # pulso_ms=67
+  335.974 [letra: S] [bin: 01010011]
+  337.068 [palabra]
+  560.454 #MARK FIN CALIBRACION - 27 toques declarados
+  561.988 >>> r
+  561.997 # umbrales punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15 verbose=1
+  562.008 # contadores flancos_crudos=64 filtrados=0 puntos=23 rayas=9 letras=13 desconocidas=0 desbordes_buffer=0 niveles_repetidos=0
+  774.584 #MARK INICIO TANDA EVALUACION - d25 en A, w2400 en B
+  775.575 >>> w2400
+  775.586 # umbrales punto_raya_ms=300 letra_ms=700 palabra_ms=2400 debounce_ms=15 verbose=1
+  776.583 >>> c
+  776.592 # contadores a cero
+  777.681 >>> r
+  777.690 # umbrales punto_raya_ms=300 letra_ms=700 palabra_ms=2400 debounce_ms=15 verbose=1
+  777.703 # contadores flancos_crudos=0 filtrados=0 puntos=0 rayas=0 letras=0 desconocidas=0 desbordes_buffer=0 niveles_repetidos=0
+  844.105 # silencio_ms=508815
+  844.199 .
+  844.200 # pulso_ms=93
+  844.632 # silencio_ms=432
+  844.711 .
+  844.711 # pulso_ms=79
+  845.081 # silencio_ms=369
+  845.168 .
+  845.169 # pulso_ms=78
+  845.863 [letra: S] [bin: 01010011]
+  846.167 # silencio_ms=1005
+  846.490 -
+  846.490 # pulso_ms=323
+  846.892 # silencio_ms=400
+  847.213 -
+  847.215 # pulso_ms=320
+  847.594 # silencio_ms=380
+  847.910 -
+  847.911 # pulso_ms=316
+  848.612 [letra: O] [bin: 01001111]
+  848.983 # silencio_ms=1072
+  849.027 .
+  849.027 # pulso_ms=44
+  849.069 # silencio_ms=44
+  849.201 .
+  849.202 # pulso_ms=128
+  849.483 # silencio_ms=280
+  849.546 .
+  849.547 # pulso_ms=66
+  850.250 [letra: S] [bin: 01010011]
+  851.949 [palabra]
+  853.294 # silencio_ms=3743
+  853.335 .
+  853.336 # pulso_ms=44
+  853.800 # silencio_ms=462
+  853.892 .
+  853.892 # pulso_ms=90
+  854.288 # silencio_ms=395
+  854.375 .
+  854.375 # pulso_ms=86
+  855.076 [letra: S] [bin: 01010011]
+  855.777 # silencio_ms=1400
+  856.018 .
+  856.020 # pulso_ms=245
+  856.425 # silencio_ms=403
+  856.826 -
+  856.828 # pulso_ms=400
+  857.309 # silencio_ms=482
+  857.650 -
+  857.650 # pulso_ms=340
+  858.047 # silencio_ms=396
+  858.330 .
+  858.330 # pulso_ms=282
+  859.031 [letra: P] [bin: 01010000]
+  859.978 # silencio_ms=1646
+  860.014 .
+  860.015 # pulso_ms=35
+  860.333 # silencio_ms=318
+  860.390 .
+  860.390 # pulso_ms=56
+  860.773 # silencio_ms=382
+  860.840 .
+  860.840 # pulso_ms=67
+  861.541 [letra: S] [bin: 01010011]
+  862.605 # silencio_ms=1763
+  862.633 .
+  862.633 # pulso_ms=31
+  863.338 [letra: E] [bin: 01000101]
+  863.433 # silencio_ms=797
+  863.504 .
+  863.505 # pulso_ms=68
+  863.841 # silencio_ms=338
+  863.882 .
+  863.883 # pulso_ms=42
+  864.587 [letra: I] [bin: 01001001]
+  866.072 # silencio_ms=2186
+  866.119 .
+  866.120 # pulso_ms=50
+  866.438 # silencio_ms=315
+  866.509 .
+  866.509 # pulso_ms=70
+  866.892 # silencio_ms=381
+  866.968 .
+  866.968 # pulso_ms=75
+  867.667 [letra: S] [bin: 01010011]
+  868.064 # silencio_ms=1097
+  868.479 -
+  868.479 # pulso_ms=411
+  868.737 # silencio_ms=260
+  869.153 -
+  869.164 # pulso_ms=415
+  869.498 # silencio_ms=343
+  869.939 -
+  869.939 # pulso_ms=441
+  870.639 [letra: O] [bin: 01001111]
+  871.039 # silencio_ms=1099
+  871.087 .
+  871.087 # pulso_ms=51
+  871.491 # silencio_ms=398
+  871.556 .
+  871.557 # pulso_ms=65
+  871.986 # silencio_ms=428
+  872.028 .
+  872.030 # pulso_ms=43
+  872.726 [letra: S] [bin: 01010011]
+  873.667 # silencio_ms=1637
+  873.802 .
+  873.803 # pulso_ms=134
+  874.194 # silencio_ms=391
+  874.294 .
+  874.296 # pulso_ms=100
+  874.712 # silencio_ms=415
+  874.788 .
+  874.789 # pulso_ms=77
+  875.486 [letra: S] [bin: 01010011]
+  876.241 # silencio_ms=1450
+  876.585 -
+  876.587 # pulso_ms=345
+  876.964 # silencio_ms=378
+  877.385 -
+  877.386 # pulso_ms=418
+  877.683 # silencio_ms=297
+  878.070 -
+  878.070 # pulso_ms=387
+  878.771 [letra: O] [bin: 01001111]
+  879.169 # silencio_ms=1098
+  879.257 .
+  879.258 # pulso_ms=89
+  879.623 # silencio_ms=364
+  879.691 .
+  879.692 # pulso_ms=67
+  880.059 # silencio_ms=367
+  880.110 .
+  880.111 # pulso_ms=52
+  880.814 [letra: S] [bin: 01010011]
+  882.512 [palabra]
+  883.001 # silencio_ms=2888
+  883.073 .
+  883.073 # pulso_ms=72
+  883.448 # silencio_ms=374
+  883.510 .
+  883.510 # pulso_ms=60
+  883.941 # silencio_ms=431
+  884.004 .
+  884.004 # pulso_ms=61
+  884.531 # silencio_ms=522
+  884.844 -
+  884.845 # pulso_ms=317
+  885.236 # silencio_ms=391
+  885.567 -
+  885.567 # pulso_ms=327
+  885.990 # silencio_ms=425
+  886.268 .
+  886.268 # pulso_ms=277
+  886.970 [letra: ?] [morse: ...--.]
+  887.177 # silencio_ms=908
+  887.241 .
+  887.242 # pulso_ms=64
+  887.464 # silencio_ms=223
+  887.509 .
+  887.509 # pulso_ms=43
+  887.759 # silencio_ms=249
+  887.818 .
+  887.818 # pulso_ms=60
+  888.521 [letra: S] [bin: 01010011]
+  890.219 [palabra]
+ 1096.615 # silencio_ms=208786
+ 1096.642 .
+ 1096.643 # pulso_ms=30
+ 1097.344 [letra: E] [bin: 01000101]
+ 1097.484 # silencio_ms=837
+ 1097.534 .
+ 1097.535 # pulso_ms=54
+ 1097.907 # silencio_ms=371
+ 1097.941 .
+ 1097.942 # pulso_ms=33
+ 1098.645 [letra: I] [bin: 01001001]
+ 1099.677 # silencio_ms=1732
+ 1099.755 .
+ 1099.756 # pulso_ms=77
+ 1100.027 # silencio_ms=270
+ 1100.107 .
+ 1100.109 # pulso_ms=83
+ 1100.417 # silencio_ms=307
+ 1100.492 .
+ 1100.493 # pulso_ms=75
+ 1101.193 [letra: S] [bin: 01010011]
+ 1101.808 # silencio_ms=1314
+ 1102.020 .
+ 1102.021 # pulso_ms=212
+ 1102.386 # silencio_ms=364
+ 1102.678 .
+ 1102.680 # pulso_ms=292
+ 1103.380 [letra: I] [bin: 01001001]
+ 1104.432 # silencio_ms=1752
+ 1104.544 .
+ 1104.546 # pulso_ms=115
+ 1104.795 # silencio_ms=246
+ 1104.872 .
+ 1104.874 # pulso_ms=78
+ 1105.248 # silencio_ms=376
+ 1105.317 .
+ 1105.317 # pulso_ms=66
+ 1106.018 [letra: S] [bin: 01010011]
+ 1106.211 # silencio_ms=891
+ 1106.835 -
+ 1106.835 # pulso_ms=623
+ 1107.337 # silencio_ms=503
+ 1107.883 -
+ 1107.884 # pulso_ms=546
+ 1108.332 # silencio_ms=447
+ 1108.792 -
+ 1108.792 # pulso_ms=459
+ 1109.494 [letra: O] [bin: 01001111]
+ 1109.799 # silencio_ms=1006
+ 1109.926 .
+ 1109.927 # pulso_ms=127
+ 1110.157 # silencio_ms=229
+ 1110.236 .
+ 1110.237 # pulso_ms=78
+ 1110.514 # silencio_ms=278
+ 1110.580 .
+ 1110.581 # pulso_ms=65
+ 1111.283 [letra: S] [bin: 01010011]
+ 1112.072 # silencio_ms=1490
+ 1112.442 -
+ 1112.443 # pulso_ms=370
+ 1112.981 # silencio_ms=537
+ 1113.322 -
+ 1113.322 # pulso_ms=340
+ 1113.818 # silencio_ms=498
+ 1114.223 -
+ 1114.223 # pulso_ms=401
+ 1114.924 [letra: O] [bin: 01001111]
+ 1114.956 # silencio_ms=734
+ 1115.084 .
+ 1115.085 # pulso_ms=125
+ 1115.300 # silencio_ms=215
+ 1115.372 .
+ 1115.372 # pulso_ms=69
+ 1115.665 # silencio_ms=295
+ 1115.762 .
+ 1115.762 # pulso_ms=88
+ 1116.377 # silencio_ms=621
+ 1116.765 -
+ 1116.765 # pulso_ms=387
+ 1117.070 # silencio_ms=304
+ 1117.487 -
+ 1117.487 # pulso_ms=416
+ 1117.865 # silencio_ms=377
+ 1117.997 .
+ 1117.998 # pulso_ms=131
+ 1118.699 [letra: ?] [morse: ...--.]
+ 1119.428 # silencio_ms=1430
+ 1119.507 .
+ 1119.507 # pulso_ms=78
+ 1119.757 # silencio_ms=249
+ 1119.826 .
+ 1119.826 # pulso_ms=68
+ 1120.132 # silencio_ms=305
+ 1120.213 .
+ 1120.213 # pulso_ms=80
+ 1120.914 [letra: S] [bin: 01010011]
+ 1121.454 # silencio_ms=1241
+ 1121.915 -
+ 1121.916 # pulso_ms=459
+ 1122.165 # silencio_ms=248
+ 1122.609 -
+ 1122.610 # pulso_ms=444
+ 1122.937 # silencio_ms=326
+ 1123.334 -
+ 1123.335 # pulso_ms=398
+ 1124.036 [letra: O] [bin: 01001111]
+ 1124.156 # silencio_ms=820
+ 1124.255 .
+ 1124.256 # pulso_ms=99
+ 1124.495 # silencio_ms=238
+ 1124.586 .
+ 1124.587 # pulso_ms=85
+ 1124.854 # silencio_ms=273
+ 1124.933 .
+ 1124.933 # pulso_ms=78
+ 1125.634 [letra: S] [bin: 01010011]
+ 1127.331 [palabra]
+ 1128.180 # silencio_ms=3246
+ 1128.313 .
+ 1128.314 # pulso_ms=131
+ 1128.510 # silencio_ms=195
+ 1128.601 .
+ 1128.602 # pulso_ms=92
+ 1128.948 # silencio_ms=346
+ 1129.033 .
+ 1129.034 # pulso_ms=79
+ 1129.484 # silencio_ms=454
+ 1129.884 -
+ 1129.885 # pulso_ms=400
+ 1130.232 # silencio_ms=348
+ 1130.676 -
+ 1130.676 # pulso_ms=442
+ 1131.042 # silencio_ms=365
+ 1131.523 -
+ 1131.523 # pulso_ms=480
+ 1132.223 [letra: ?] [morse: ...---]
+ 1132.306 # silencio_ms=784
+ 1132.341 .
+ 1132.341 # pulso_ms=33
+ 1132.576 # silencio_ms=234
+ 1132.655 .
+ 1132.656 # pulso_ms=77
+ 1132.959 # silencio_ms=302
+ 1133.038 .
+ 1133.039 # pulso_ms=80
+ 1133.737 [letra: S] [bin: 01010011]
+ 1135.436 [palabra]
+ 1135.659 # silencio_ms=2621
+ 1135.727 .
+ 1135.728 # pulso_ms=68
+ 1135.938 # silencio_ms=209
+ 1136.016 .
+ 1136.017 # pulso_ms=78
+ 1136.297 # silencio_ms=279
+ 1136.366 .
+ 1136.367 # pulso_ms=68
+ 1137.066 [letra: S] [bin: 01010011]
+ 1137.797 # silencio_ms=1428
+ 1138.112 -
+ 1138.113 # pulso_ms=317
+ 1138.508 # silencio_ms=395
+ 1138.887 -
+ 1138.888 # pulso_ms=378
+ 1139.282 # silencio_ms=394
+ 1139.692 -
+ 1139.694 # pulso_ms=409
+ 1140.394 [letra: O] [bin: 01001111]
+ 1141.129 # silencio_ms=1434
+ 1141.217 .
+ 1141.219 # pulso_ms=88
+ 1141.636 # silencio_ms=419
+ 1141.728 .
+ 1141.729 # pulso_ms=91
+ 1142.035 # silencio_ms=305
+ 1142.135 .
+ 1142.137 # pulso_ms=100
+ 1142.836 [letra: S] [bin: 01010011]
+ 1143.583 # silencio_ms=1446
+ 1143.849 .
+ 1143.850 # pulso_ms=269
+ 1144.554 [letra: E] [bin: 01000101]
+ 1144.658 # silencio_ms=805
+ 1144.709 .
+ 1144.710 # pulso_ms=52
+ 1145.411 [letra: E] [bin: 01000101]
+ 1145.634 # silencio_ms=924
+ 1145.681 .
+ 1145.682 # pulso_ms=47
+ 1146.385 [letra: E] [bin: 01000101]
+ 1147.406 # silencio_ms=1722
+ 1147.469 .
+ 1147.470 # pulso_ms=65
+ 1147.710 # silencio_ms=238
+ 1147.782 .
+ 1147.782 # pulso_ms=69
+ 1148.000 # silencio_ms=219
+ 1148.056 .
+ 1148.057 # pulso_ms=57
+ 1148.761 [letra: S] [bin: 01010011]
+ 1149.121 # silencio_ms=1062
+ 1149.544 -
+ 1149.546 # pulso_ms=422
+ 1149.925 # silencio_ms=380
+ 1150.249 -
+ 1150.249 # pulso_ms=323
+ 1150.647 # silencio_ms=397
+ 1150.939 .
+ 1150.940 # pulso_ms=292
+ 1151.641 [letra: G] [bin: 01000111]
+ 1151.977 # silencio_ms=1036
+ 1152.038 .
+ 1152.039 # pulso_ms=62
+ 1152.251 # silencio_ms=211
+ 1152.292 .
+ 1152.293 # pulso_ms=43
+ 1152.517 # silencio_ms=221
+ 1152.570 .
+ 1152.571 # pulso_ms=53
+ 1153.273 [letra: S] [bin: 01010011]
+ 1153.688 # silencio_ms=1116
+ 1153.960 .
+ 1153.960 # pulso_ms=271
+ 1154.662 [letra: E] [bin: 01000101]
+ 1155.132 # silencio_ms=1171
+ 1155.614 -
+ 1155.615 # pulso_ms=481
+ 1156.103 # silencio_ms=488
+ 1156.527 -
+ 1156.528 # pulso_ms=422
+ 1156.922 # silencio_ms=395
+ 1157.301 -
+ 1157.303 # pulso_ms=379
+ 1158.002 [letra: O] [bin: 01001111]
+ 1158.397 # silencio_ms=1094
+ 1158.474 .
+ 1158.475 # pulso_ms=71
+ 1158.503 # silencio_ms=35
+ 1158.540 .
+ 1158.540 # pulso_ms=37
+ 1158.795 # silencio_ms=252
+ 1158.851 .
+ 1158.852 # pulso_ms=57
+ 1159.119 # silencio_ms=265
+ 1159.149 .
+ 1159.149 # pulso_ms=31
+ 1159.852 [letra: H] [bin: 01001000]
+ 1161.550 [palabra]
+ 1226.161 #MARK FIN TANDA EVALUACION
+ 1227.143 >>> r
+ 1227.152 # umbrales punto_raya_ms=300 letra_ms=700 palabra_ms=2400 debounce_ms=15 verbose=1
+ 1227.163 # contadores flancos_crudos=244 filtrados=0 puntos=87 rayas=35 letras=39 desconocidas=3 desbordes_buffer=0 niveles_repetidos=0
+ 1480.665 #MARK INICIO TANDA FINAL - p173 (banda vacia 134-212), d25 en A, w2400
+ 1481.539 >>> p173
+ 1481.551 # umbrales punto_raya_ms=173 letra_ms=700 palabra_ms=2400 debounce_ms=15 verbose=1
+ 1482.650 >>> c
+ 1482.656 # contadores a cero
+ 1483.632 >>> r
+ 1483.641 # umbrales punto_raya_ms=173 letra_ms=700 palabra_ms=2400 debounce_ms=15 verbose=1
+ 1483.654 # contadores flancos_crudos=0 filtrados=0 puntos=0 rayas=0 letras=0 desconocidas=0 desbordes_buffer=0 niveles_repetidos=0
+ 1725.249 # silencio_ms=566076
+ 1725.333 .
+ 1725.334 # pulso_ms=85
+ 1725.709 # silencio_ms=375
+ 1725.797 .
+ 1725.798 # pulso_ms=84
+ 1726.100 # silencio_ms=303
+ 1726.166 .
+ 1726.166 # pulso_ms=63
+ 1726.866 [letra: S] [bin: 01010011]
+ 1727.593 # silencio_ms=1426
+ 1727.892 -
+ 1727.892 # pulso_ms=293
+ 1728.309 # silencio_ms=424
+ 1728.662 -
+ 1728.663 # pulso_ms=351
+ 1729.056 # silencio_ms=392
+ 1729.378 -
+ 1729.378 # pulso_ms=320
+ 1730.077 [letra: O] [bin: 01001111]
+ 1730.079 # silencio_ms=704
+ 1730.117 .
+ 1730.118 # pulso_ms=38
+ 1730.481 # silencio_ms=360
+ 1730.525 .
+ 1730.526 # pulso_ms=47
+ 1730.799 # silencio_ms=269
+ 1730.850 .
+ 1730.850 # pulso_ms=52
+ 1731.553 [letra: S] [bin: 01010011]
+ 1733.251 [palabra]
+ 1734.117 # silencio_ms=3264
+ 1734.220 .
+ 1734.220 # pulso_ms=102
+ 1734.484 # silencio_ms=263
+ 1734.543 .
+ 1734.544 # pulso_ms=59
+ 1734.828 # silencio_ms=284
+ 1734.910 .
+ 1734.911 # pulso_ms=83
+ 1735.612 [letra: S] [bin: 01010011]
+ 1736.409 # silencio_ms=1497
+ 1736.545 .
+ 1736.545 # pulso_ms=135
+ 1737.239 # silencio_ms=693
+ 1737.570 -
+ 1737.571 # pulso_ms=330
+ 1737.910 # silencio_ms=336
+ 1738.223 -
+ 1738.224 # pulso_ms=315
+ 1738.537 # silencio_ms=313
+ 1738.837 -
+ 1738.838 # pulso_ms=299
+ 1739.537 [letra: J] [bin: 01001010]
+ 1740.233 # silencio_ms=1395
+ 1740.280 .
+ 1740.280 # pulso_ms=49
+ 1740.526 # silencio_ms=243
+ 1740.600 .
+ 1740.601 # pulso_ms=73
+ 1740.850 # silencio_ms=250
+ 1740.915 .
+ 1740.915 # pulso_ms=62
+ 1741.615 [letra: S] [bin: 01010011]
+ 1743.313 [palabra]
+ 1743.965 # silencio_ms=3049
+ 1744.088 .
+ 1744.088 # pulso_ms=122
+ 1744.307 # silencio_ms=219
+ 1744.359 .
+ 1744.359 # pulso_ms=53
+ 1744.752 # silencio_ms=389
+ 1744.828 .
+ 1744.829 # pulso_ms=75
+ 1745.528 [letra: S] [bin: 01010011]
+ 1746.260 # silencio_ms=1434
+ 1746.624 -
+ 1746.624 # pulso_ms=361
+ 1746.899 # silencio_ms=275
+ 1747.285 -
+ 1747.286 # pulso_ms=384
+ 1747.671 # silencio_ms=384
+ 1748.070 -
+ 1748.072 # pulso_ms=399
+ 1748.771 [letra: O] [bin: 01001111]
+ 1749.335 # silencio_ms=1266
+ 1749.420 .
+ 1749.421 # pulso_ms=81
+ 1749.668 # silencio_ms=247
+ 1749.746 .
+ 1749.748 # pulso_ms=78
+ 1750.031 # silencio_ms=283
+ 1750.100 .
+ 1750.100 # pulso_ms=69
+ 1750.801 [letra: S] [bin: 01010011]
+ 1752.499 [palabra]
+ 1753.351 # silencio_ms=3250
+ 1753.471 .
+ 1753.472 # pulso_ms=120
+ 1753.726 # silencio_ms=254
+ 1753.835 .
+ 1753.835 # pulso_ms=107
+ 1754.075 # silencio_ms=239
+ 1754.175 .
+ 1754.176 # pulso_ms=100
+ 1754.877 [letra: S] [bin: 01010011]
+ 1755.461 # silencio_ms=1284
+ 1755.727 -
+ 1755.728 # pulso_ms=266
+ 1756.103 # silencio_ms=375
+ 1756.415 -
+ 1756.416 # pulso_ms=311
+ 1756.859 # silencio_ms=443
+ 1757.166 -
+ 1757.167 # pulso_ms=305
+ 1757.868 [letra: O] [bin: 01001111]
+ 1758.458 # silencio_ms=1291
+ 1758.568 .
+ 1758.568 # pulso_ms=111
+ 1758.784 # silencio_ms=214
+ 1758.897 .
+ 1758.898 # pulso_ms=112
+ 1759.128 # silencio_ms=231
+ 1759.223 .
+ 1759.224 # pulso_ms=94
+ 1759.927 [letra: S] [bin: 01010011]
+ 1761.625 [palabra]
+ 1791.359 #MARK FIN TANDA FINAL - operador declara >27 toques, un SOS salio SJS
+ 1792.233 >>> r
+ 1792.241 # umbrales punto_raya_ms=173 letra_ms=700 palabra_ms=2400 debounce_ms=15 verbose=1
+ 1792.255 # contadores flancos_crudos=74 filtrados=0 puntos=25 rayas=12 letras=12 desconocidas=0 desbordes_buffer=0 niveles_repetidos=0

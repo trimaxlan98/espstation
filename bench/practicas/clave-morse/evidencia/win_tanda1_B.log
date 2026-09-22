@@ -1,0 +1,116 @@
+   19.403 #MARK SESION LIMPIA - B reflasheada desde Windows, suspension USB desactivada
+   19.403 >>> v
+   19.414 # umbrales punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15 verbose=1
+  146.552 -
+  146.552 # pulso_ms=554
+  147.254 [letra: T] [bin: 01010100]
+  147.643 # silencio_ms=1090
+  148.003 -
+  148.004 # pulso_ms=359
+  148.702 # silencio_ms=698
+  149.078 -
+  149.079 # pulso_ms=375
+  149.778 [letra: M] [bin: 01001101]
+  150.374 # silencio_ms=1294
+  150.464 .
+  150.465 # pulso_ms=90
+  150.739 # silencio_ms=274
+  150.839 .
+  150.840 # pulso_ms=99
+  151.125 # silencio_ms=285
+  151.226 .
+  151.226 # pulso_ms=100
+  151.557 # silencio_ms=328
+  151.655 .
+  151.656 # pulso_ms=98
+  152.354 [letra: H] [bin: 01001000]
+  153.453 [palabra]
+  310.100 # silencio_ms=158437
+  310.186 .
+  310.186 # pulso_ms=88
+  310.523 # silencio_ms=335
+  310.620 .
+  310.628 # pulso_ms=97
+  310.934 # silencio_ms=312
+  311.017 .
+  311.018 # pulso_ms=83
+  311.720 [letra: S] [bin: 01010011]
+  312.672 # silencio_ms=1654
+  312.719 .
+  312.720 # pulso_ms=48
+  313.422 [letra: E] [bin: 01000101]
+  313.677 # silencio_ms=955
+  313.753 .
+  313.754 # pulso_ms=75
+  313.777 # silencio_ms=23
+  313.975 .
+  313.977 # pulso_ms=197
+  314.677 [letra: I] [bin: 01001001]
+  315.775 [palabra]
+  317.132 # silencio_ms=3156
+  317.186 .
+  317.186 # pulso_ms=53
+  317.540 # silencio_ms=351
+  317.609 .
+  317.610 # pulso_ms=73
+  317.929 # silencio_ms=316
+  317.986 .
+  317.986 # pulso_ms=58
+  318.691 [letra: S] [bin: 01010011]
+  319.256 # silencio_ms=1267
+  319.448 .
+  319.448 # pulso_ms=190
+  320.149 [letra: E] [bin: 01000101]
+  320.180 # silencio_ms=734
+  320.599 -
+  320.600 # pulso_ms=418
+  321.138 # silencio_ms=536
+  321.509 -
+  321.509 # pulso_ms=370
+  321.932 # silencio_ms=420
+  322.286 -
+  322.287 # pulso_ms=356
+  322.986 [letra: O] [bin: 01001111]
+  324.040 # silencio_ms=1752
+  324.149 .
+  324.150 # pulso_ms=108
+  324.442 # silencio_ms=291
+  324.491 .
+  324.492 # pulso_ms=51
+  324.835 # silencio_ms=340
+  324.888 .
+  324.888 # pulso_ms=53
+  325.590 [letra: S] [bin: 01010011]
+  326.685 [palabra]
+  328.042 # silencio_ms=3153
+  328.154 .
+  328.156 # pulso_ms=112
+  328.457 # silencio_ms=301
+  328.498 .
+  328.499 # pulso_ms=42
+  328.865 # silencio_ms=364
+  328.935 .
+  328.935 # pulso_ms=69
+  329.637 [letra: S] [bin: 01010011]
+  330.643 # silencio_ms=1707
+  331.117 -
+  331.118 # pulso_ms=474
+  331.418 # silencio_ms=299
+  331.895 -
+  331.895 # pulso_ms=476
+  332.235 # silencio_ms=341
+  332.635 -
+  332.635 # pulso_ms=397
+  333.336 [letra: O] [bin: 01001111]
+  334.089 # silencio_ms=1453
+  334.185 .
+  334.185 # pulso_ms=95
+  334.825 # silencio_ms=637
+  334.914 .
+  334.915 # pulso_ms=88
+  335.201 # silencio_ms=290
+  335.271 .
+  335.271 # pulso_ms=67
+  335.974 [letra: S] [bin: 01010011]
+  337.068 [palabra]
+  560.454 #MARK FIN CALIBRACION - 27 toques declarados

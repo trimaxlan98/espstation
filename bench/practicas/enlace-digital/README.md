@@ -296,11 +296,55 @@ bytes que faltan no se cuentan (así `bit_errors ⊆ bits_rx` y `BER ≤ 1`).
 
 ## Resultados N1
 
-**PENDIENTE DE MEDIR EN HARDWARE**
+**MEDIDO EN HARDWARE el 2026-09-21** (arduino-cli 1.5.1, core `esp32:esp32` 3.3.11,
+`--fqbn esp32:esp32:esp32`). Placa **A** = `/dev/ttyUSB0` (emisor), placa **B** =
+`/dev/ttyUSB1` (receptor); las dos son CP2102 idénticas y se distinguen sólo por la
+etiqueta física. Cableado: `A.GPIO26 → 330 Ω → B.GPIO25`, GND común, LED en GPIO4
+con 330 Ω en cada placa. **Longitud del cable: no medida.** Logs completos en
+[`evidencia/`](evidencia/) (ver nota sobre `.gitignore` abajo).
 
-| Fecha | Placas / cable | Cambios en 60 s | Anomalías | Nivel con cable de señal desconectado | Observaciones |
-|---|---|---|---|---|---|
-| | | | | | |
+| Configuración | Cambios en 60 s | Anomalías | Nivel con cable de señal desconectado | Observaciones |
+|---|---|---|---|---|
+| Sketch del repo (`INPUT_PULLDOWN`) | **120** (`t_ms` 10010→70010, `cambios` 20→140); 600 en 300 s (10010→310010, 20→620) | **0** en 300 s (`grep -c ',ANOMALIA'` = 0; 0 de 87 resúmenes con `anomalias≠0` hasta la desconexión) | **0 estable ≈66,9 s** (`t_ms` 693134→760010), 14 resúmenes seguidos con `cambios=1387`; LED de B apagado y fijo (observado por el usuario) | `dt_ms` de 499 o 500 ms en las líneas legibles. LED de A y B sincronizados a 1 Hz (observado por el usuario). Emisor A siguió emitiendo con normalidad con el cable suelto. |
+| Contraste: `INPUT` **sin pull** (copia fuera del repo) | — | 11 767 líneas `ANOMALIA` de 11 947 | **Oscila ≈120 cambios/s** (`t_ms` 120010→125010: 601 cambios en 5 s); intervalos de 9 ms (2974), 8 ms (2019), 7 ms (1624); LED de B a medio brillo (observado por el usuario) | Último resumen: `t_ms=170010 cambios=11876 anomalias=11727`. **Hipótesis, no comprobada:** interferencia de red a 60 Hz (dos cruces por ciclo); la frecuencia cuadra, pero no se midió con instrumento. |
+
+**Archivos de evidencia** (`bench/practicas/enlace-digital/evidencia/`):
+`n1_receptor.log` (B, 0,18→887,8 s de captura, 300 s limpios + desconexión +
+reconexión), `n1_emisor.log` (A), `n1_desconexion.log` (extracto de
+`n1_receptor.log`, captura 683,3→830,2 s), `n1_contraste_INPUT.log` (variante sin
+pull), `n1_restaurado.log` (sketch correcto restaurado en B: `anomalias=0`, sigue a A
+con cambios de 500 ms).
+
+**Limitaciones y hallazgos, sin maquillar:**
+
+- **La desconexión se hizo con la línea en 0.** El último cambio previo fue un
+  flanco de bajada (`693134,0,500`) y el siguiente de subida no llegó, así que la
+  prueba con pull-down no incluye una caída 1→0 al desconectar. Es coherente con
+  el pull-down, pero por sí sola no lo distingue de un `INPUT` flotante que se
+  queda en 0. El contraste sí es concluyente: con `INPUT` y el cable suelto la
+  línea empezó a oscilar de inmediato (`74301,0,225,ANOMALIA`, la desconexión
+  captada como caída 1→0 a los 225 ms). Con `INPUT_PULLDOWN` esa oscilación no apareció en
+  ~66,9 s.
+- **La reconexión da `anomalias=11`, y no es un fallo del enlace.** Aparecen a
+  788–790 s y 819–820 s de captura, en la transición al reconectar a mano
+  (primer intervalo tras el silencio: 104 811 ms; ráfagas de 0–3 ms). Desde
+  `t_ms=830624` los intervalos son de 500 ms estables. Rebote mecánico del
+  jumper es una **hipótesis** plausible, no medida. Con 0 anomalías antes de la
+  desconexión, ese 11 pertenece sólo a la reconexión.
+- **Basura de captura serie (causa no encontrada).** Bloques de 64 bytes `0xFF`
+  pisan el principio de una línea en ambas placas: 9 veces en `n1_emisor.log`, 4
+  en `n1_receptor.log`, 2 en `n1_contraste_INPUT.log`, 1 en `n1_restaurado.log`
+  (contadas con Python sobre bytes). Además cada captura abierta tras un `upload`
+  empieza con una ráfaga de `80 00 00` (≈48 KB en A, ≈8 KB en B). Los sketches
+  sólo imprimen ASCII, así que apunta a la cadena USB-serie o al capturador, pero
+  **no se comprobó**. Consecuencia medida: en `n1_receptor.log` hay 648 líneas de
+  cambio entre los resúmenes `t_ms=10010` y `335010` frente a 650 esperadas; los
+  contadores del propio receptor (`cambios`, `anomalias`) no se ven afectados.
+- **Abrir el puerto no reseteó las placas** en estas capturas (el receptor mostró
+  `t_ms=10010` a los 0,18 s de captura), al contrario de lo que se suponía del
+  auto-reset del CP2102.
+- **`.gitignore:36` tiene `*.log`**: los archivos de `evidencia/` **no** se
+  versionan salvo que se añada una excepción.
 
 ## Resultados N2
 
@@ -355,8 +399,10 @@ bytes que faltan no se cuentan (así `bit_errors ⊆ bits_rx` y `BER ≤ 1`).
   --mutation-check` aplica 11 mutaciones al sketch (polinomio CRC, semilla,
   regla de `bit_errors`, resincronización, orden de bits, hueco, orden de `pinMode`...) sobre copias
   temporales y exige que todas hagan fallar el test.
-- **Sin verificar en hardware.** Ningún sketch se ha ejecutado en una placa;
-  ninguna cifra de esta práctica está medida. El test de host prueba la
+- **Verificado en hardware sólo N1** (2026-09-21, ver `## Resultados N1`): los
+  sketches `n1_nivel/emisor` y `n1_nivel/receptor` se subieron a dos placas reales y se
+  midieron. **N2 y N3 siguen sin ejecutarse en una placa; sus cifras
+  (RTT, BER, límite de velocidad) no existen.** El test de host prueba la
   **lógica** (trama, CRC, FSM, contabilidad, secuencia y espaciado de los
   flancos del transmisor), **no** la temporización real: latencia de la ISR,
   jitter, setup/hold en el cable y límite de velocidad son cosa del banco.

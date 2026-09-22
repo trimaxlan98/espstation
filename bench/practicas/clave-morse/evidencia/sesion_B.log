@@ -1,0 +1,364 @@
+    0.444 -
+    1.193 .
+    1.896 [letra: F] [bin: 01000110]
+    2.408 .
+    3.121 .
+    4.123 >>> r
+    4.133 # umbrales punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15 verbose=0
+    4.143 # contadores flancos_crudos=26 filtrados=0 puntos=8 rayas=4 letras=2 desconocidas=1 desbordes_buffer=0 niveles_repetidos=0
+    4.320 -
+    5.070 .
+    5.894 -
+    6.401 .
+    6.615 .
+    7.374 -
+    8.077 [letra: ?] [morse: ..-.-..-]
+    9.175 [palabra]
+   14.638 .
+   15.072 .
+   15.491 .
+   15.732 .
+   16.514 .
+   16.756 .
+   16.956 .
+   17.659 [letra: ?] [morse: .......]
+   18.757 [palabra]
+   26.774 #MARK ensayo informal previo terminado; contadores a cero, verbose ON en B; umbrales de arranque 300/700/1800/15
+   26.774 >>> c
+   26.777 # contadores a cero
+   27.178 >>> v
+   27.187 # umbrales punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15 verbose=1
+   27.788 >>> r
+   27.797 # umbrales punto_raya_ms=300 letra_ms=700 palabra_ms=1800 debounce_ms=15 verbose=1
+   27.807 # contadores flancos_crudos=0 filtrados=0 puntos=0 rayas=0 letras=0 desconocidas=0 desbordes_buffer=0 niveles_repetidos=0
+   41.629 #MARK INICIO SOS x3 (umbrales de arranque 300/700/1800/15, contadores a cero, 27 toques esperados)
+  151.723 # silencio_ms=134757
+  151.780 .
+  151.780 # pulso_ms=56
+  152.031 # silencio_ms=250
+  152.094 .
+  152.094 # pulso_ms=62
+  152.414 # silencio_ms=319
+  152.468 .
+  152.468 # pulso_ms=53
+  153.169 [letra: S] [bin: 01010011]
+  153.181 # silencio_ms=712
+  153.437 .
+  153.437 # pulso_ms=255
+  154.030 # silencio_ms=592
+  154.394 -
+  154.394 # pulso_ms=363
+  154.948 # silencio_ms=553
+  155.298 -
+  155.298 # pulso_ms=349
+  155.695 # silencio_ms=396
+  155.748 .
+  155.748 # pulso_ms=53
+  155.942 # silencio_ms=193
+  156.010 .
+  156.010 # pulso_ms=67
+  156.305 # silencio_ms=294
+  156.356 .
+  156.356 # pulso_ms=51
+  157.057 [letra: ?] [morse: .--...]
+  158.155 [palabra]
+  167.035 # silencio_ms=10678
+  167.104 .
+  167.104 # pulso_ms=69
+  167.368 # silencio_ms=263
+  167.430 .
+  167.430 # pulso_ms=61
+  167.759 # silencio_ms=327
+  167.826 .
+  167.827 # pulso_ms=68
+  168.528 [letra: S] [bin: 01010011]
+  168.553 # silencio_ms=725
+  168.818 .
+  168.819 # pulso_ms=265
+  169.305 # silencio_ms=486
+  169.534 .
+  169.535 # pulso_ms=228
+  170.090 # silencio_ms=554
+  170.438 -
+  170.439 # pulso_ms=348
+  171.140 [letra: U] [bin: 01010101]
+  171.333 # silencio_ms=893
+  171.376 .
+  171.377 # pulso_ms=43
+  171.641 # silencio_ms=263
+  171.683 .
+  171.684 # pulso_ms=42
+  171.963 # silencio_ms=278
+  172.011 .
+  172.012 # pulso_ms=48
+  172.713 [letra: S] [bin: 01010011]
+  172.986 # silencio_ms=973
+  173.243 .
+  173.244 # pulso_ms=257
+  173.751 # silencio_ms=506
+  173.961 .
+  173.962 # pulso_ms=210
+  174.619 # silencio_ms=657
+  174.896 .
+  174.896 # pulso_ms=276
+  175.598 [letra: S] [bin: 01010011]
+  176.696 [palabra]
+  177.134 # silencio_ms=2236
+  177.166 .
+  177.167 # pulso_ms=32
+  177.531 # silencio_ms=364
+  177.594 .
+  177.594 # pulso_ms=62
+  177.889 # silencio_ms=293
+  177.932 .
+  177.933 # pulso_ms=43
+  178.477 # silencio_ms=543
+  178.924 -
+  178.925 # pulso_ms=447
+  179.367 # silencio_ms=441
+  179.692 -
+  179.693 # pulso_ms=325
+  180.192 # silencio_ms=498
+  180.683 -
+  180.684 # pulso_ms=491
+  181.271 # silencio_ms=586
+  181.320 .
+  181.321 # pulso_ms=49
+  181.482 # silencio_ms=160
+  181.507 .
+  181.508 # pulso_ms=26
+  181.621 # silencio_ms=112
+  181.668 .
+  181.674 # pulso_ms=47
+  181.946 # silencio_ms=276
+  181.972 .
+  181.973 # pulso_ms=26
+  182.673 [letra: ?] [morse: ...---..+]
+  183.772 [palabra]
+  197.599 #MARK FIN SOS x3 (usuario dijo listo)
+  197.599 >>> r
+  197.608 ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿra_ms=700 palabra_ms=1800 debounce_ms=15 verbose=1
+  197.618 # contadores flancos_crudos=62 filtrados=0 puntos=25 rayas=6 letras=5 desconocidas=2 desbordes_buffer=0 niveles_repetidos=0
+  307.205 #MARK TANDA 1 TERMINADA: 0/3 SOS. Cambio: punto_raya_ms 300->140 (pulsos cortos 26-69 ms, largos 210-491 ms). letra/palabra/debounce sin cambios. TANDA 2 a continuacion
+  307.205 >>> p140
+  307.214 # umbrales punto_raya_ms=140 letra_ms=700 palabra_ms=1800 debounce_ms=15 verbose=1
+  307.614 >>> c
+  307.617 # contadores a cero
+  308.218 #MARK INICIO TANDA 2 (p=140, 27 toques esperados)
+  472.369 # silencio_ms=290378
+  472.458 .
+  472.458 # pulso_ms=89
+  472.716 # silencio_ms=257
+  472.822 .
+  472.822 # pulso_ms=105
+  473.230 # silencio_ms=407
+  473.339 .
+  473.339 # pulso_ms=108
+  474.041 [letra: S] [bin: 01010011]
+  474.503 # silencio_ms=1163
+  475.083 -
+  475.083 # pulso_ms=579
+  475.543 # silencio_ms=459
+  476.185 -
+  476.185 # pulso_ms=641
+  476.886 [letra: M] [bin: 01001101]
+  477.038 # silencio_ms=852
+  477.689 -
+  477.689 # pulso_ms=650
+  478.390 [letra: T] [bin: 01010100]
+  479.489 [palabra]
+  479.893 # silencio_ms=2203
+  479.973 .
+  479.973 # pulso_ms=79
+  480.185 # silencio_ms=211
+  480.276 .
+  480.276 # pulso_ms=90
+  480.515 # silencio_ms=238
+  480.590 .
+  480.590 # pulso_ms=74
+  481.291 [letra: S] [bin: 01010011]
+  482.390 [palabra]
+  484.409 # silencio_ms=3818
+  484.539 .
+  484.539 # pulso_ms=129
+  484.858 # silencio_ms=318
+  484.957 .
+  484.957 # pulso_ms=98
+  485.275 # silencio_ms=317
+  485.386 .
+  485.386 # pulso_ms=110
+  486.088 [letra: S] [bin: 01010011]
+  486.640 # silencio_ms=1253
+  487.227 -
+  487.227 # pulso_ms=586
+  487.928 [letra: T] [bin: 01010100]
+  488.354 # silencio_ms=1126
+  489.076 -
+  489.076 # pulso_ms=721
+  489.778 [letra: T] [bin: 01010100]
+  490.250 # silencio_ms=1173
+  490.821 -
+  490.821 # pulso_ms=570
+  491.524 [letra: T] [bin: 01010100]
+  492.621 [palabra]
+  492.877 # silencio_ms=2055
+  492.970 .
+  492.970 # pulso_ms=92
+  493.230 # silencio_ms=259
+  493.287 .
+  493.287 # pulso_ms=56
+  493.603 # silencio_ms=315
+  493.678 .
+  493.678 # pulso_ms=74
+  494.379 [letra: S] [bin: 01010011]
+  495.478 [palabra]
+  498.749 # silencio_ms=5070
+  498.845 .
+  498.845 # pulso_ms=95
+  499.182 # silencio_ms=336
+  499.258 .
+  499.258 # pulso_ms=75
+  499.586 # silencio_ms=327
+  499.669 .
+  499.669 # pulso_ms=82
+  500.370 [letra: S] [bin: 01010011]
+  500.681 # silencio_ms=1011
+  501.252 -
+  501.257 # pulso_ms=570
+  501.953 [letra: T] [bin: 01010100]
+  502.055 # silencio_ms=802
+  502.645 -
+  502.645 # pulso_ms=589
+  503.346 [letra: T] [bin: 01010100]
+  503.486 # silencio_ms=840
+  504.163 -
+  504.163 # pulso_ms=676
+  504.864 [letra: T] [bin: 01010100]
+  505.849 # silencio_ms=1685
+  505.924 .
+  505.924 # pulso_ms=74
+  506.180 # silencio_ms=255
+  506.228 .
+  506.228 # pulso_ms=47
+  506.247 # silencio_ms=18
+  506.284 .
+  506.288 # pulso_ms=36
+  506.583 # silencio_ms=298
+  506.653 .
+  506.653 # pulso_ms=69
+  507.354 [letra: H] [bin: 01001000]
+  508.452 [palabra]
+  519.469 #MARK FIN TANDA 2 (usuario dijo listo; declara 27 toques en tanda 2; tanda 1 no sabe)
+  519.469 >>> r
+  519.478 # umbrales punto_raya_ms=140 letra_ms=700 palabra_ms=1800 debounce_ms=15 verbose=1
+  519.488 # contadores flancos_crudos=56 filtrados=0 puntos=19 rayas=9 letras=14 desconocidas=0 desbordes_buffer=0 niveles_repetidos=0
+  623.455 #MARK TANDA 2 TERMINADA: 0/3 SOS. Cambios: B p140->170 (cortos max 129 ms, largos min 210 ms en tandas 1+2), B l700->930 (silencio dentro de letra max 852, entre letras min 1011), B w1800->3000 (entre letras max 2203, entre palabras min 3818), A d15->25 (un toque dio 2 pulsos con hueco de 19 ms). TANDA 3 a continuacion
+  623.455 >>> p170
+  623.463 # umbrales punto_raya_ms=170 letra_ms=700 palabra_ms=1800 debounce_ms=15 verbose=1
+  623.664 >>> l930
+  623.673 # umbrales punto_raya_ms=170 letra_ms=930 palabra_ms=1800 debounce_ms=15 verbose=1
+  624.074 >>> w3000
+  624.083 # umbrales punto_raya_ms=170 letra_ms=930 palabra_ms=3000 debounce_ms=15 verbose=1
+  624.885 >>> c
+  624.887 # contadores a cero
+  625.288 >>> r
+  625.297 # umbrales punto_raya_ms=170 letra_ms=930 palabra_ms=3000 debounce_ms=15 verbose=1
+  625.306 # contadores flancos_crudos=0 filtrados=0 puntos=0 rayas=0 letras=0 desconocidas=0 desbordes_buffer=0 niveles_repetidos=0
+  626.308 #MARK INICIO TANDA 3 (B: p170 l930 w3000 d15; A: d25; 27 toques esperados)
+  722.843 ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ.
+  722.844 # pulso_ms=103
+  723.216 # silencio_ms=373
+  723.326 .
+  723.327 # pulso_ms=109
+  723.748 # silencio_ms=421
+  723.859 .
+  723.859 # pulso_ms=110
+  724.790 [letra: S] [bin: 01010011]
+  725.475 # silencio_ms=1614
+  726.007 -
+  726.008 # pulso_ms=532
+  726.515 # silencio_ms=507
+  727.118 -
+  727.118 # pulso_ms=602
+  727.816 # silencio_ms=697
+  728.386 -
+  728.386 # pulso_ms=569
+  729.317 [letra: O] [bin: 01001111]
+  729.986 # silencio_ms=1599
+  730.102 .
+  730.103 # pulso_ms=115
+  730.437 # silencio_ms=334
+  730.533 .
+  730.533 # pulso_ms=95
+  730.880 # silencio_ms=346
+  730.985 .
+  730.985 # pulso_ms=104
+  731.917 [letra: S] [bin: 01010011]
+  733.985 [palabra]
+  733.991 # silencio_ms=3004
+  734.095 .
+  734.096 # pulso_ms=104
+  734.474 # silencio_ms=378
+  734.586 .
+  734.586 # pulso_ms=111
+  734.904 # silencio_ms=317
+  735.002 .
+  735.002 # pulso_ms=97
+  735.933 [letra: S] [bin: 01010011]
+  736.204 # silencio_ms=1201
+  736.573 -
+  736.578 # pulso_ms=368
+  737.371 # silencio_ms=797
+  737.838 -
+  737.838 # pulso_ms=466
+  738.689 # silencio_ms=850
+  739.334 -
+  739.334 # pulso_ms=644
+  740.265 [letra: O] [bin: 01001111]
+  740.688 # silencio_ms=1353
+  740.800 .
+  740.800 # pulso_ms=111
+  741.086 # silencio_ms=285
+  741.198 .
+  741.198 # pulso_ms=111
+  741.495 # silencio_ms=296
+  741.604 .
+  741.605 # pulso_ms=108
+  742.535 [letra: S] [bin: 01010011]
+  744.072 # silencio_ms=2467
+  744.196 .
+  744.196 # pulso_ms=123
+  744.507 # silencio_ms=310
+  744.609 .
+  744.609 # pulso_ms=101
+  744.907 # silencio_ms=297
+  745.019 .
+  745.019 # pulso_ms=111
+  745.950 [letra: S] [bin: 01010011]
+  746.249 # silencio_ms=1229
+  746.765 -
+  746.765 # pulso_ms=515
+  747.696 [letra: T] [bin: 01010100]
+  747.803 # silencio_ms=1037
+  748.364 -
+  748.364 # pulso_ms=560
+  749.290 # silencio_ms=925
+  749.826 -
+  749.826 # pulso_ms=535
+  750.757 [letra: M] [bin: 01001101]
+  751.551 # silencio_ms=1724
+  751.692 .
+  751.692 # pulso_ms=140
+  751.921 # silencio_ms=228
+  752.023 .
+  752.023 # pulso_ms=101
+  752.259 # silencio_ms=235
+  752.358 .
+  752.359 # pulso_ms=99
+  753.290 [letra: S] [bin: 01010011]
+  755.358 [palabra]
+  765.575 #MARK FIN TANDA 3 (usuario dijo listo; declara 27 toques)
+  765.575 >>> r
+  765.585 # umbrales punto_raya_ms=170 letra_ms=930 palabra_ms=3000 debounce_ms=15 verbose=1
+  765.595 # contadores flancos_crudos=55 filtrados=0 puntos=18 rayas=9 letras=10 desconocidas=0 desbordes_buffer=0 niveles_repetidos=1
+  851.957 #MARK FIN SESION morse 2026-09-21 (capturadores parados por el orquestador)

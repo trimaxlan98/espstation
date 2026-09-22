@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Morse dúplex · la comunicación en vivo</title>
+<style>
+:root{
+  --bg:#0f1115; --card:#171a21; --line:#2a2f3a; --ink:#e7eaf0; --mute:#8d95a5;
+  --ok:#3ddc84; --warn:#ffb86b; --bad:#ff6b6b; --ab:#6bc5ff; --ba:#c79bff;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#f5f6f8; --card:#fff; --line:#dfe3ea; --ink:#1a1d24; --mute:#636b7a;
+    --ab:#0b72b5; --ba:#7a3fc4; --ok:#128a4c;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:16px}
+h1{font-size:19px;margin:0 0 4px}
+h2{font-size:15px;margin:0 0 10px;color:var(--mute);font-weight:600;
+  text-transform:uppercase;letter-spacing:.06em}
+h3{font-size:14px;margin:14px 0 6px}
+.wrap{max-width:1180px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:14px;margin-bottom:14px}
+.row{display:flex;gap:14px;flex-wrap:wrap}
+.row>.card{flex:1 1 380px;margin-bottom:0}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.badge{border:1px solid var(--line);border-radius:999px;padding:3px 11px;font-size:13px;
+  background:var(--card);color:var(--mute)}
+.badge.ok{color:var(--ok);border-color:var(--ok)}
+.badge.bad{color:var(--bad);border-color:var(--bad)}
+.mute{color:var(--mute)}
+.small{font-size:13px}
+.led{display:inline-block;width:14px;height:14px;border-radius:50%;
+  background:#333a47;border:1px solid var(--line);vertical-align:-2px}
+.led.on{background:var(--ok);box-shadow:0 0 10px var(--ok)}
+.texto{font-size:30px;font-weight:700;letter-spacing:.1em;min-height:42px;
+  word-break:break-all}
+.texto .prog{color:var(--mute);font-size:22px;letter-spacing:.2em}
+.cons{background:#0b0d11;color:#cfd6e4;border:1px solid var(--line);border-radius:8px;
+  padding:8px;font:12px/1.45 ui-monospace,Menlo,Consolas,monospace;height:140px;
+  overflow:auto;white-space:pre-wrap;margin:0}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{border-bottom:1px solid var(--line);padding:5px 6px;text-align:left}
+th{color:var(--mute);font-weight:600}
+td.n{font-variant-numeric:tabular-nums}
+input[type=number]{width:78px;font:inherit;padding:5px;border-radius:6px;
+  border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+select{font:inherit;padding:5px;border-radius:6px;border:1px solid var(--line);
+  background:var(--bg);color:var(--ink)}
+button{font:inherit;padding:6px 12px;border-radius:8px;border:1px solid var(--line);
+  background:var(--card);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--mute)}
+button.pri{background:var(--ab);border-color:var(--ab);color:#04121d;font-weight:600}
+button[aria-pressed=true]{background:var(--ab);border-color:var(--ab);color:#04121d}
+.campos{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:8px}
+.campos label{display:block;font-size:12px;color:var(--mute)}
+#lienzo{width:100%;height:260px;display:block;border-radius:8px;background:var(--bg);
+  border:1px solid var(--line)}
+.leyenda{font-size:12px;color:var(--mute);margin-top:8px}
+.leyenda i{display:inline-block;width:11px;height:11px;border-radius:2px;
+  vertical-align:-1px;margin:0 4px 0 12px}
+details{border-top:1px solid var(--line);padding-top:10px;margin-top:4px}
+summary{cursor:pointer;color:var(--mute);font-size:14px}
+/* tiras de cadencia */
+.tira{position:relative;height:100px;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg);overflow:hidden}
+.tira .marca{position:absolute;top:0;bottom:16px;width:0;border-left:2px dashed var(--mute)}
+.tira .marca span{position:absolute;top:2px;left:4px;font-size:11px;color:var(--mute);
+  white-space:nowrap;background:var(--bg);padding:0 3px}
+.tira .b{position:absolute;bottom:16px;height:11px;border-radius:3px;background:var(--mute)}
+.tira .eje{position:absolute;left:0;right:0;bottom:0;height:16px;font-size:10px;color:var(--mute)}
+.tira .eje i{position:absolute;transform:translateX(-50%);font-style:normal}
+.b.letra{background:var(--ok)}
+.b.palabra{background:var(--ab)}
+.b.raya{background:var(--ba)}
+.pista{margin:8px 0 0;font-size:14px}
+.pista b{font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Morse dúplex · la comunicación en vivo</h1>
+<p class="mute small" style="margin:0 0 12px">
+  El mismo sketch en las dos placas, cable cruzado, un hilo por sentido. Cada
+  carril es una dirección y se dibuja mientras ocurre. Contrato:
+  <code>SPEC-DUPLEX.md</code>.
+</p>
+
+<div class="bar">
+  <span class="badge" id="ePuente">puente: sin conexión</span>
+  <span class="badge" id="eA">A: —</span>
+  <span class="badge" id="eB">B: —</span>
+  <span class="badge" id="eModo" style="display:none"></span>
+  <button id="bPausa" style="margin-left:auto">Pausar</button>
+  <button id="bBorrar">Borrar pantalla</button>
+</div>
+
+<!-- =========================== LA SEÑAL EN VIVO =========================== -->
+<div class="card">
+  <h2>La señal en el cable</h2>
+  <div class="campos">
+    <div><label for="selVentana">Ventana</label>
+      <select id="selVentana">
+        <option value="8">8 s</option>
+        <option value="15" selected>15 s</option>
+        <option value="30">30 s</option>
+        <option value="60">60 s</option>
+      </select></div>
+    <div style="align-self:center">
+      <button id="bSimbolos" aria-pressed="true">Símbolos</button>
+      <button id="bLetras" aria-pressed="true">Letras</button>
+      <button id="bUmbral" aria-pressed="true">Marca de punto/raya</button>
+    </div>
+  </div>
+  <canvas id="lienzo"></canvas>
+  <div class="leyenda">
+    <i style="background:var(--ab)"></i> A → B (la llave de A)
+    <i style="background:var(--ba)"></i> B → A (la llave de B)
+    · el símbolo y la letra que se dibujan son los que decodificó
+    <b>quien escucha</b>, no quien envía.
+  </div>
+</div>
+
+<!-- =========================== LO QUE LEE CADA UNO ======================== -->
+<div class="row" id="estaciones"></div>
+
+<!-- =========================== CADENCIA (secundario) ====================== -->
+<div class="card" style="margin-top:14px">
+  <details id="detCadencia">
+    <summary>Cadencia · los huecos y los pulsos frente a los umbrales
+      (para afinar la mano)</summary>
+    <div class="campos" style="margin-top:12px">
+      <div><label for="selFlujo">Flujo</label>
+        <select id="selFlujo">
+          <option value="A|RX">A · RX (lo que A oye de B)</option>
+          <option value="B|RX">B · RX (lo que B oye de A)</option>
+          <option value="A|TX">A · TX (eco de la llave de A)</option>
+          <option value="B|TX">B · TX (eco de la llave de B)</option>
+        </select></div>
+    </div>
+    <h3>Huecos de silencio frente a <code>letra_ms</code> y <code>palabra_ms</code></h3>
+    <div class="tira" id="tiraSil"></div>
+    <p class="pista" id="pistaSil">—</p>
+    <h3>Duración de cada pulso frente a <code>punto_raya_ms</code></h3>
+    <div class="tira" id="tiraPul" style="height:86px"></div>
+    <p class="pista" id="pistaPul">—</p>
+    <div class="leyenda">
+      <i style="background:var(--mute)"></i> no cerró nada / punto
+      <i style="background:var(--ok)"></i> cerró letra
+      <i style="background:var(--ab)"></i> cerró palabra
+      <i style="background:var(--ba)"></i> raya
+    </div>
+  </details>
+</div>
+
+<!-- =========================== INTEGRIDAD ================================= -->
+<div class="card">
+  <h2>Cruce de integridad</h2>
+  <table>
+    <thead><tr><th>Sentido</th><th>Pulsos enviados</th>
+      <th>Pulsos recibidos</th><th>Veredicto</th></tr></thead>
+    <tbody>
+      <tr><td>A → B</td><td class="n" id="cxAB1">—</td><td class="n" id="cxAB2">—</td><td id="cxAB3">—</td></tr>
+      <tr><td>B → A</td><td class="n" id="cxBA1">—</td><td class="n" id="cxBA2">—</td><td id="cxBA3">—</td></tr>
+    </tbody>
+  </table>
+  <p class="mute small" style="margin:8px 0 0">
+    Cuenta lo visto en esta pantalla desde el último borrado. Los contadores de
+    las placas, con <code>filtrados</code> y <code>desbordes_buffer</code>, están
+    en cada estación: son los que delatan ruido o pérdida.
+  </p>
+</div>
+
+<!-- =========================== UMBRALES =================================== -->
+<div class="card">
+  <details>
+    <summary>Umbrales de las dos placas</summary>
+    <p class="mute small" style="margin:10px 0">
+      Sin prefijo van al decodificador <b>RX</b> de esa placa, que describe
+      <b>la mano del otro</b>. El eco lleva <code>t</code> delante.
+    </p>
+    <div id="umbrales"></div>
+    <div class="campos" style="margin-top:6px">
+      <button id="bIgualar">Igualar cada eco al RX del otro</button>
+      <button id="bEstado">Pedir estado (r)</button>
+      <button id="bCeros">Contadores a cero</button>
+    </div>
+    <p class="pista mute small" id="notaCmd" style="margin:0">—</p>
+  </details>
+</div>
+
+<div class="row">
+  <div class="card"><h2>Serie de A</h2><pre class="cons" id="consA"></pre></div>
+  <div class="card"><h2>Serie de B</h2><pre class="cons" id="consB"></pre></div>
+</div>
+
+</div>
+
+<script>
+(function () {
+"use strict";
+const SRCS = ["A", "B"];
+const SENTIDOS = ["RX", "TX"];
+const MAXB = 26;            // barras por tira de cadencia
+const MAXCONS = 240;        // lineas de consola
+const VIDA = 120000;        // ms de señal que se conservan en memoria
+
+// Los dos sentidos del cable. El trazo lo da la llave del emisor (sus flancos
+// llegan en vivo); el simbolo y la letra los pone QUIEN ESCUCHA, que es lo que
+// de verdad se ha comunicado.
+const DIRS = [
+  { id: "AB", emisor: "A", receptor: "B", et: "A → B", color: "--ab" },
+  { id: "BA", emisor: "B", receptor: "A", et: "B → A", color: "--ba" }
+];
+
+function nuevoFlujo() {
+  return {
+    texto: "", prog: "", pulsos: [], silencios: [],
+    contadores: null, umbrales: null,
+    cerroLetra: false, cerroPalabra: false
+  };
+}
+const est = {};
+SRCS.forEach(s => {
+  est[s] = { nivel: null, llave: null, cons: [], vivo: false, RX: nuevoFlujo(), TX: nuevoFlujo() };
+});
+// Trazo por sentido: segmentos en alto + marcas de simbolo y letra.
+const traza = {};
+DIRS.forEach(d => { traza[d.id] = { seg: [], sim: [], let_: [] }; });
+
+let pausado = false, sucio = true;
+const ahora = () => performance.now();
+
+const $ = id => document.getElementById(id);
+
+// ------------------------------------------------------------ plantillas
+const cEst = document.getElementById("estaciones");
+SRCS.forEach(s => {
+  const d = document.createElement("div");
+  d.className = "card";
+  d.innerHTML = `
+    <h2>Estación ${s}</h2>
+    <p class="small mute" style="margin:0 0 8px">Llave (GPIO13)
+      <span class="led" id="led${s}"></span>
+      <b id="niv${s}" style="color:var(--ink)">—</b></p>
+    <h3>Lo que ${s} recibe del otro (RX)</h3>
+    <div class="texto" id="txt${s}RX">&nbsp;</div>
+    <h3 class="mute">Eco de su propia llave (TX)</h3>
+    <div class="texto" id="txt${s}TX" style="font-size:22px;opacity:.75">&nbsp;</div>
+    <table style="margin-top:10px">
+      <tbody>
+        <tr><th>RX</th><td class="small n" id="cnt${s}RX">—</td></tr>
+        <tr><th>TX</th><td class="small n" id="cnt${s}TX">—</td></tr>
+        <tr><th>llave</th><td class="small n" id="llv${s}">—</td></tr>
+      </tbody>
+    </table>`;
+  cEst.appendChild(d);
+});
+
+const cUmb = document.getElementById("umbrales");
+SRCS.forEach(s => {
+  const d = document.createElement("div");
+  d.className = "campos";
+  d.innerHTML = `
+    <div style="min-width:70px;font-weight:600;align-self:center">Placa ${s}</div>
+    <div><label>p · punto/raya</label><input type="number" id="u${s}p" min="1" max="60000"></div>
+    <div><label>l · letra</label><input type="number" id="u${s}l" min="1" max="60000"></div>
+    <div><label>w · palabra</label><input type="number" id="u${s}w" min="1" max="60000"></div>
+    <div><label>d · ruido RX</label><input type="number" id="u${s}d" min="0" max="200"></div>
+    <div><label>k · llave</label><input type="number" id="u${s}k" min="0" max="200"></div>
+    <div><button class="pri" id="uAp${s}">Aplicar en ${s}</button></div>`;
+  cUmb.appendChild(d);
+});
+
+// ------------------------------------------------------------ eventos SSE
+function dirDeEmisor(src) { return DIRS.find(d => d.emisor === src); }
+function dirDeReceptor(src) { return DIRS.find(d => d.receptor === src); }
+
+function aplicar(ev) {
+  const s = ev.src;
+  if (s === "puente") {
+    if (ev.tipo === "estado" || ev.tipo === "aviso" || ev.tipo === "fin_demo") pintarEstado(ev);
+    return;
+  }
+  if (!est[s]) return;
+  const e = est[s];
+  e.vivo = true;
+  const T = ahora();
+
+  if (ev.raw) {
+    e.cons.push(ev.raw);
+    if (e.cons.length > MAXCONS) e.cons.shift();
+  }
+
+  const f = ev.sentido && e[ev.sentido] ? e[ev.sentido] : null;
+
+  switch (ev.tipo) {
+    case "flanco": {                       // borde de la llave de esta placa
+      e.nivel = ev.nivel;
+      const d = dirDeEmisor(s);
+      if (d) {
+        const t = traza[d.id];
+        if (ev.nivel === 1) t.seg.push({ t0: T, t1: null, sim: null });
+        else {
+          const ult = t.seg[t.seg.length - 1];
+          if (ult && ult.t1 === null) ult.t1 = T;
+        }
+      }
+      break;
+    }
+    case "simbolo":
+      if (f) f.prog += ev.v;
+      // El simbolo lo decide quien escucha: va al trazo del sentido que RECIBE
+      // esta placa. Si el otro extremo no esta, vale el eco de quien envia.
+      marcarSimbolo(s, ev.sentido, ev.v, T);
+      break;
+    case "letra":
+      if (f) {
+        f.texto += ev.letra === "?" ? "¿" : ev.letra;
+        f.prog = "";
+        f.cerroLetra = true;
+      }
+      marcarLetra(s, ev.sentido, ev.letra === "?" ? "¿" : ev.letra, T);
+      break;
+    case "palabra":
+      if (f) { f.texto += " "; f.cerroPalabra = true; }
+      marcarLetra(s, ev.sentido, "/", T);
+      break;
+    case "pulso":
+      if (f && !ev.filtrado) {
+        f.pulsos.push(ev.ms);
+        if (f.pulsos.length > MAXB) f.pulsos.shift();
+        reconstruir(s, ev.sentido, ev.ms, T);
+      }
+      break;
+    case "silencio":
+      if (f) {
+        f.silencios.push({ ms: ev.ms, letra: f.cerroLetra, palabra: f.cerroPalabra });
+        if (f.silencios.length > MAXB) f.silencios.shift();
+        f.cerroLetra = f.cerroPalabra = false;
+      }
+      break;
+    case "umbrales":
+      if (f) { f.umbrales = ev; rellenarUmbrales(s); }
+      break;
+    case "contadores": if (f) f.contadores = ev; break;
+    case "llave": e.llave = ev; break;
+  }
+  sucio = true;
+}
+
+// Que sentido del cable describe un evento de la placa `s`:
+//   su RX  -> el sentido en el que `s` es receptor;
+//   su TX  -> el sentido en el que `s` es emisor.
+function dirDe(s, sentido) {
+  return sentido === "RX" ? dirDeReceptor(s) : dirDeEmisor(s);
+}
+// Prioridad: manda lo que decodifico el receptor; el eco solo rellena si el
+// otro extremo no esta conectado.
+function mandaEste(s, sentido) {
+  if (sentido === "RX") return true;
+  const d = dirDeEmisor(s);
+  return !(d && est[d.receptor].vivo);
+}
+function marcarSimbolo(s, sentido, v, T) {
+  if (!sentido || !mandaEste(s, sentido)) return;
+  const d = dirDe(s, sentido);
+  if (!d) return;
+  const t = traza[d.id];
+  for (let i = t.seg.length - 1; i >= 0 && i > t.seg.length - 6; i--) {
+    if (t.seg[i].t1 !== null && t.seg[i].sim === null) { t.seg[i].sim = v; return; }
+  }
+  t.sim.push({ t: T, v });               // sin trazo (placa suelta): marca suelta
+}
+function marcarLetra(s, sentido, txt, T) {
+  if (!sentido || !mandaEste(s, sentido)) return;
+  const d = dirDe(s, sentido);
+  if (d) traza[d.id].let_.push({ t: T, txt });
+}
+// Sin flancos (el otro extremo no manda `# TX flanco`), el trazo se reconstruye
+// con la duracion medida: el pulso que acaba de terminar ocupo [T-ms, T].
+function reconstruir(s, sentido, ms, T) {
+  if (sentido !== "RX") return;
+  const d = dirDeReceptor(s);
+  if (!d || est[d.emisor].vivo) return;   // si el emisor esta, ya dibujo su flanco
+  traza[d.id].seg.push({ t0: T - ms, t1: T, sim: null });
+}
+
+let umbTocados = {};
+function rellenarUmbrales(s) {
+  const rx = est[s].RX.umbrales, llv = est[s].llave;
+  const set = (c, v) => {
+    const el = $("u" + s + c);
+    if (el && v !== undefined && !umbTocados["u" + s + c]) el.value = v;
+  };
+  if (rx) { set("p", rx.punto_raya_ms); set("l", rx.letra_ms); set("w", rx.palabra_ms); set("d", rx.debounce_ms); }
+  if (llv) set("k", llv.debounce_ms);
+}
+SRCS.forEach(s => ["p", "l", "w", "d", "k"].forEach(c => {
+  const el = $("u" + s + c);
+  if (el) el.addEventListener("input", () => { umbTocados["u" + s + c] = true; });
+}));
+
+// ------------------------------------------------------------ dibujo de la señal
+const lienzo = $("lienzo");
+const ctx = lienzo.getContext("2d");
+let verSim = true, verLet = true, verUmb = true;
+
+function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+function dibujarSenal() {
+  const dpr = window.devicePixelRatio || 1;
+  const w = lienzo.clientWidth, h = lienzo.clientHeight;
+  if (lienzo.width !== Math.round(w * dpr) || lienzo.height !== Math.round(h * dpr)) {
+    lienzo.width = Math.round(w * dpr);
+    lienzo.height = Math.round(h * dpr);
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+
+  const ventana = parseFloat($("selVentana").value) * 1000;
+  const T = ahora();
+  const x = t => w * (1 - (T - t) / ventana);
+  const colInk = css("--ink"), colMute = css("--mute"), colLine = css("--line");
+
+  const altoCarril = (h - 26) / DIRS.length;
+  DIRS.forEach((d, i) => {
+    const y0 = 8 + i * altoCarril;           // arriba del carril
+    const base = y0 + altoCarril - 26;       // linea de reposo
+    const alto = altoCarril - 54;            // altura del pulso
+    const col = css(d.color);
+
+    // etiqueta y linea de reposo
+    ctx.fillStyle = col;
+    ctx.font = "600 12px system-ui,sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText(d.et, 6, y0 + 12);
+    ctx.strokeStyle = colLine;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, base + 0.5); ctx.lineTo(w, base + 0.5); ctx.stroke();
+
+    // trazo
+    const t = traza[d.id];
+    ctx.fillStyle = col;
+    ctx.globalAlpha = 0.85;
+    t.seg.forEach(sg => {
+      const fin = sg.t1 === null ? T : sg.t1;
+      if (fin < T - ventana) return;
+      const xa = Math.max(0, x(sg.t0)), xb = Math.min(w, x(fin));
+      if (xb <= xa) return;
+      ctx.fillRect(xa, base - alto, xb - xa, alto);
+    });
+    ctx.globalAlpha = 1;
+
+    // simbolo decidido sobre cada pulso
+    if (verSim) {
+      ctx.fillStyle = colInk;
+      ctx.font = "700 15px ui-monospace,Consolas,monospace";
+      ctx.textAlign = "center";
+      t.seg.forEach(sg => {
+        if (!sg.sim || sg.t1 === null || sg.t1 < T - ventana) return;
+        const xc = (Math.max(0, x(sg.t0)) + Math.min(w, x(sg.t1))) / 2;
+        ctx.fillText(sg.sim, xc, base - alto - 5);
+      });
+      t.sim.forEach(m => {
+        if (m.t < T - ventana) return;
+        ctx.fillText(m.v, x(m.t), base - alto - 5);
+      });
+    }
+
+    // letras decodificadas, en la linea de reposo
+    if (verLet) {
+      ctx.font = "700 14px system-ui,sans-serif";
+      ctx.textAlign = "center";
+      t.let_.forEach(m => {
+        if (m.t < T - ventana) return;
+        const xm = x(m.t);
+        ctx.strokeStyle = m.txt === "/" ? colMute : col;
+        ctx.globalAlpha = 0.6;
+        ctx.beginPath(); ctx.moveTo(xm, base - alto); ctx.lineTo(xm, base + 16); ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = m.txt === "/" ? colMute : colInk;
+        ctx.fillText(m.txt, xm, base + 15);
+      });
+    }
+
+    // marca de punto/raya: cuanto mide el umbral en esta escala
+    const um = est[d.receptor].RX.umbrales || est[d.emisor].TX.umbrales;
+    if (verUmb && um && um.punto_raya_ms) {
+      const anchoP = w * (um.punto_raya_ms / ventana);
+      ctx.strokeStyle = colMute;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.moveTo(w - 6 - anchoP, base - alto - 20);
+      ctx.lineTo(w - 6, base - alto - 20);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = colMute;
+      ctx.font = "11px system-ui,sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(`p=${um.punto_raya_ms} ms`, w - 6, base - alto - 24);
+    }
+  });
+
+  // rejilla de segundos y linea de "ahora"
+  ctx.strokeStyle = colLine;
+  ctx.fillStyle = colMute;
+  ctx.font = "10px system-ui,sans-serif";
+  ctx.textAlign = "center";
+  const paso = ventana <= 15000 ? 1000 : (ventana <= 30000 ? 5000 : 10000);
+  for (let k = 0; k * paso <= ventana; k++) {
+    const xt = w - (k * paso / ventana) * w;
+    ctx.globalAlpha = 0.35;
+    ctx.beginPath(); ctx.moveTo(xt, 0); ctx.lineTo(xt, h - 14); ctx.stroke();
+    ctx.globalAlpha = 1;
+    if (k) ctx.fillText("-" + (k * paso / 1000) + "s", xt, h - 3);
+  }
+  ctx.strokeStyle = css("--ok");
+  ctx.beginPath(); ctx.moveTo(w - 0.5, 0); ctx.lineTo(w - 0.5, h - 14); ctx.stroke();
+}
+
+function podar() {
+  const lim = ahora() - VIDA;
+  DIRS.forEach(d => {
+    const t = traza[d.id];
+    t.seg = t.seg.filter(s => s.t1 === null || s.t1 > lim);
+    t.sim = t.sim.filter(m => m.t > lim);
+    t.let_ = t.let_.filter(m => m.t > lim);
+  });
+}
+
+// ------------------------------------------------------------ tiras de cadencia
+const LMIN = Math.log(20), LMAX = Math.log(8000);
+const pos = ms => Math.max(0, Math.min(1, (Math.log(Math.max(ms, 20)) - LMIN) / (LMAX - LMIN)));
+
+function tira(el, barras, marcas, alto) {
+  const h = [];
+  barras.forEach((b, i) => {
+    h.push(`<div class="b ${b.clase}" style="left:0;width:${(pos(b.ms) * 100).toFixed(2)}%;`
+      + `bottom:${16 + i * alto}px;height:${alto - 2}px" title="${b.ms} ms · ${b.nota}"></div>`);
+  });
+  marcas.forEach(m => {
+    if (!m.ms) return;
+    h.push(`<div class="marca" style="left:${(pos(m.ms) * 100).toFixed(2)}%"><span>${m.et}=${m.ms}</span></div>`);
+  });
+  h.push('<div class="eje">' + [50, 100, 200, 500, 1000, 2000, 5000].map(v =>
+    `<i style="left:${(pos(v) * 100).toFixed(2)}%">${v < 1000 ? v : (v / 1000) + "s"}</i>`).join("") + "</div>");
+  el.innerHTML = h.join("");
+}
+
+function pintarCadencia() {
+  if (!$("detCadencia").open) return;
+  const [s, sent] = $("selFlujo").value.split("|");
+  const f = est[s][sent];
+  const um = est[s][sent].umbrales || est[s].RX.umbrales;
+  const alto = 3;
+
+  tira($("tiraSil"), f.silencios.slice(-MAXB).map(x => ({
+    ms: x.ms, clase: x.palabra ? "palabra" : (x.letra ? "letra" : ""),
+    nota: x.palabra ? "cerró palabra" : (x.letra ? "cerró letra" : "no cerró nada")
+  })), [{ ms: um && um.letra_ms, et: "l" }, { ms: um && um.palabra_ms, et: "w" }], alto);
+
+  tira($("tiraPul"), f.pulsos.slice(-MAXB).map(ms => ({
+    ms, clase: (um && ms >= um.punto_raya_ms) ? "raya" : "",
+    nota: (um && ms >= um.punto_raya_ms) ? "raya" : "punto"
+  })), [{ ms: um && um.punto_raya_ms, et: "p" }], alto);
+
+  const ult = f.silencios[f.silencios.length - 1];
+  const pS = $("pistaSil");
+  if (!ult || !um) pS.textContent = "Sin huecos medidos. Hace falta verbose (v) en la placa.";
+  else if (ult.palabra) pS.innerHTML = `Último hueco <b>${ult.ms} ms</b> — cerró <b>palabra</b>.`;
+  else if (ult.letra) pS.innerHTML = `Último hueco <b>${ult.ms} ms</b> — cerró <b>letra</b>. Así se hace.`;
+  else pS.innerHTML = `Último hueco <b>${ult.ms} ms</b> — <b style="color:var(--warn)">no cerró letra</b>:`
+    + ` faltaron ${um.letra_ms - ult.ms} ms para l=${um.letra_ms}.`;
+
+  const ps = um ? f.pulsos.filter(x => x < um.punto_raya_ms) : [];
+  const rs = um ? f.pulsos.filter(x => x >= um.punto_raya_ms) : [];
+  const pP = $("pistaPul");
+  if (!f.pulsos.length || !um) pP.textContent = "Sin pulsos medidos.";
+  else {
+    let t = `${ps.length} puntos, ${rs.length} rayas.`;
+    if (ps.length && rs.length) {
+      const mp = Math.max(...ps), mr = Math.min(...rs);
+      t += ` Banda vacía ${mp}–${mr} ms: ${mr - mp} ms de margen para p=${um.punto_raya_ms}.`;
+      if (mr - mp < 40) t += " Margen escaso: el umbral es frágil.";
+    }
+    pP.textContent = t;
+  }
+}
+
+// ------------------------------------------------------------ resto de la pantalla
+function pintarEstaciones() {
+  SRCS.forEach(s => {
+    const e = est[s];
+    const led = $("led" + s), niv = $("niv" + s);
+    if (led) led.className = "led" + (e.nivel === 1 ? " on" : "");
+    if (niv) niv.textContent = e.nivel === null ? "—" : (e.nivel ? "cerrada" : "abierta");
+    SENTIDOS.forEach(sent => {
+      const f = e[sent], el = $("txt" + s + sent);
+      if (el) {
+        const t = f.texto.slice(-40);
+        el.innerHTML = (t ? t.replace(/ /g, "&nbsp;·&nbsp;") : "&nbsp;")
+          + (f.prog ? ` <span class="prog">${f.prog}</span>` : "");
+      }
+      const c = f.contadores, cel = $("cnt" + s + sent);
+      if (cel) cel.textContent = !c ? "—"
+        : `puntos ${c.puntos} · rayas ${c.rayas} · letras ${c.letras} · desconocidas ${c.desconocidas}`
+          + ` · filtrados ${c.filtrados}`
+          + (c.desbordes_buffer !== undefined ? ` · desbordes ${c.desbordes_buffer}` : "");
+    });
+    const l = e.llave, lel = $("llv" + s);
+    if (lel) lel.textContent = !l ? "—"
+      : `crudos ${l.crudos} · aceptados ${l.aceptados} · k=${l.debounce_ms} ms`
+        + (l.crudos && l.aceptados ? ` (${(l.crudos / l.aceptados).toFixed(1)} rebotes por flanco)` : "");
+    const cel = $("cons" + s);
+    if (cel && cel.dataset.n !== String(e.cons.length)) {
+      cel.textContent = e.cons.join("\n");
+      cel.dataset.n = String(e.cons.length);
+      cel.scrollTop = cel.scrollHeight;
+    }
+  });
+}
+
+function pintarCruce() {
+  DIRS.forEach(d => {
+    const ne = est[d.emisor].TX.pulsos.length, nr = est[d.receptor].RX.pulsos.length;
+    $("cx" + d.id + "1").textContent = ne;
+    $("cx" + d.id + "2").textContent = nr;
+    const v = $("cx" + d.id + "3");
+    if (!ne && !nr) { v.textContent = "—"; v.style.color = ""; }
+    else if (ne === nr) { v.textContent = "cuadra"; v.style.color = "var(--ok)"; }
+    else { v.textContent = `descuadre de ${Math.abs(ne - nr)}`; v.style.color = "var(--warn)"; }
+  });
+}
+
+function pintarEstado(ev) {
+  if (ev.tipo === "estado") {
+    const p = $("ePuente");
+    p.textContent = "puente: conectado"; p.className = "badge ok";
+    if (ev.modo) {
+      const m = $("eModo");
+      m.textContent = ev.modo; m.style.display = "";
+      m.className = "badge" + (String(ev.modo).startsWith("vivo") ? " ok" : "");
+    }
+    SRCS.forEach(s => {
+      if (ev[s] !== undefined) {
+        const el = $("e" + s);
+        el.textContent = `${s}: ${ev[s]}`;
+        el.className = "badge" + (ev[s] === "conectado" ? " ok"
+          : (String(ev[s]).startsWith("sin conexion") ? " bad" : ""));
+      }
+    });
+  }
+  if (ev.tipo === "aviso") nota("aviso: " + ev.v);
+  if (ev.tipo === "fin_demo") nota("la reproducción ha terminado.");
+}
+function nota(t) { $("notaCmd").textContent = t; }
+
+// ------------------------------------------------------------ bucle
+let ultLento = 0;
+function bucle() {
+  requestAnimationFrame(bucle);
+  if (pausado) return;
+  dibujarSenal();                       // siempre: es una animacion, tiene que correr
+  const T = ahora();
+  if (T - ultLento > 140 && sucio) {    // el resto, mas despacio
+    ultLento = T; sucio = false;
+    podar();
+    pintarEstaciones();
+    pintarCadencia();
+    pintarCruce();
+  }
+}
+requestAnimationFrame(bucle);
+
+// ------------------------------------------------------------ conexion
+let es = null;
+function conectar() {
+  if (es) es.close();
+  es = new EventSource("/eventos");
+  es.onmessage = m => {
+    let ev;
+    try { ev = JSON.parse(m.data); } catch (_) { return; }
+    aplicar(ev);
+  };
+  es.onerror = () => {
+    const p = $("ePuente");
+    p.textContent = "puente: sin conexión"; p.className = "badge bad";
+  };
+}
+conectar();
+
+// ------------------------------------------------------------ comandos
+async function mandar(placa, cmd) {
+  try {
+    const r = await fetch("/comando", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ placa, cmd })
+    });
+    if (!r.ok) { nota(`${placa} ← ${cmd}: rechazado (${r.status})`); return false; }
+    nota(`${placa} ← ${cmd}: enviado`);
+    return true;
+  } catch (e) { nota(`${placa} ← ${cmd}: no se pudo enviar (${e})`); return false; }
+}
+async function mandarVarios(placa, cmds) {
+  for (const c of cmds) { if (!await mandar(placa, c)) return; await new Promise(r => setTimeout(r, 130)); }
+  nota(`${placa}: aplicados ${cmds.join(" ")}`);
+}
+SRCS.forEach(s => {
+  $("uAp" + s).addEventListener("click", () => {
+    const v = c => $("u" + s + c).value.trim();
+    const cmds = [];
+    if (v("w")) cmds.push("w" + v("w"));     // w antes que l: la placa rechaza l >= w
+    if (v("l")) cmds.push("l" + v("l"));
+    if (v("p")) cmds.push("p" + v("p"));
+    if (v("d")) cmds.push("d" + v("d"));
+    if (v("k")) cmds.push("k" + v("k"));
+    cmds.push("r");
+    ["p", "l", "w", "d", "k"].forEach(c => { delete umbTocados["u" + s + c]; });
+    mandarVarios(s, cmds);
+  });
+});
+$("bIgualar").addEventListener("click", () => {
+  const plan = [];
+  SRCS.forEach(s => {
+    const u = est[s === "A" ? "B" : "A"].RX.umbrales;
+    if (u) plan.push([s, ["tw" + u.palabra_ms, "tl" + u.letra_ms, "tp" + u.punto_raya_ms,
+                          "td" + u.debounce_ms, "r"]]);
+  });
+  if (!plan.length) { nota("aún no conozco los umbrales: pulsa «Pedir estado»."); return; }
+  (async () => { for (const [s, c] of plan) await mandarVarios(s, c); })();
+});
+$("bEstado").addEventListener("click", () => SRCS.forEach(s => mandar(s, "r")));
+$("bCeros").addEventListener("click", () => SRCS.forEach(s => mandar(s, "c")));
+
+// ------------------------------------------------------------ controles
+$("bPausa").addEventListener("click", e => {
+  pausado = !pausado;
+  e.target.textContent = pausado ? "Reanudar" : "Pausar";
+  sucio = true;
+});
+$("bBorrar").addEventListener("click", () => {
+  SRCS.forEach(s => {
+    const llave = est[s].llave;
+    SENTIDOS.forEach(sent => {
+      const u = est[s][sent].umbrales, c = est[s][sent].contadores;
+      est[s][sent] = nuevoFlujo();
+      est[s][sent].umbrales = u;
+      est[s][sent].contadores = c;
+    });
+    est[s].cons = [];
+    est[s].llave = llave;
+    const cel = $("cons" + s);
+    if (cel) { cel.textContent = ""; cel.dataset.n = "0"; }
+  });
+  DIRS.forEach(d => { traza[d.id] = { seg: [], sim: [], let_: [] }; });
+  sucio = true;
+});
+const alterna = (id, set) => $(id).addEventListener("click", e => {
+  const v = e.target.getAttribute("aria-pressed") !== "true";
+  e.target.setAttribute("aria-pressed", String(v));
+  set(v);
+});
+alterna("bSimbolos", v => { verSim = v; });
+alterna("bLetras", v => { verLet = v; });
+alterna("bUmbral", v => { verUmb = v; });
+$("selFlujo").addEventListener("change", () => { sucio = true; });
+$("detCadencia").addEventListener("toggle", () => { sucio = true; });
+
+})();
+</script>
+</body>
+</html>

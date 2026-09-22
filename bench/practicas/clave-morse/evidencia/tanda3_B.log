@@ -1,0 +1,94 @@
+  626.308 #MARK INICIO TANDA 3 (B: p170 l930 w3000 d15; A: d25; 27 toques esperados)
+  722.843 ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ.
+  722.844 # pulso_ms=103
+  723.216 # silencio_ms=373
+  723.326 .
+  723.327 # pulso_ms=109
+  723.748 # silencio_ms=421
+  723.859 .
+  723.859 # pulso_ms=110
+  724.790 [letra: S] [bin: 01010011]
+  725.475 # silencio_ms=1614
+  726.007 -
+  726.008 # pulso_ms=532
+  726.515 # silencio_ms=507
+  727.118 -
+  727.118 # pulso_ms=602
+  727.816 # silencio_ms=697
+  728.386 -
+  728.386 # pulso_ms=569
+  729.317 [letra: O] [bin: 01001111]
+  729.986 # silencio_ms=1599
+  730.102 .
+  730.103 # pulso_ms=115
+  730.437 # silencio_ms=334
+  730.533 .
+  730.533 # pulso_ms=95
+  730.880 # silencio_ms=346
+  730.985 .
+  730.985 # pulso_ms=104
+  731.917 [letra: S] [bin: 01010011]
+  733.985 [palabra]
+  733.991 # silencio_ms=3004
+  734.095 .
+  734.096 # pulso_ms=104
+  734.474 # silencio_ms=378
+  734.586 .
+  734.586 # pulso_ms=111
+  734.904 # silencio_ms=317
+  735.002 .
+  735.002 # pulso_ms=97
+  735.933 [letra: S] [bin: 01010011]
+  736.204 # silencio_ms=1201
+  736.573 -
+  736.578 # pulso_ms=368
+  737.371 # silencio_ms=797
+  737.838 -
+  737.838 # pulso_ms=466
+  738.689 # silencio_ms=850
+  739.334 -
+  739.334 # pulso_ms=644
+  740.265 [letra: O] [bin: 01001111]
+  740.688 # silencio_ms=1353
+  740.800 .
+  740.800 # pulso_ms=111
+  741.086 # silencio_ms=285
+  741.198 .
+  741.198 # pulso_ms=111
+  741.495 # silencio_ms=296
+  741.604 .
+  741.605 # pulso_ms=108
+  742.535 [letra: S] [bin: 01010011]
+  744.072 # silencio_ms=2467
+  744.196 .
+  744.196 # pulso_ms=123
+  744.507 # silencio_ms=310
+  744.609 .
+  744.609 # pulso_ms=101
+  744.907 # silencio_ms=297
+  745.019 .
+  745.019 # pulso_ms=111
+  745.950 [letra: S] [bin: 01010011]
+  746.249 # silencio_ms=1229
+  746.765 -
+  746.765 # pulso_ms=515
+  747.696 [letra: T] [bin: 01010100]
+  747.803 # silencio_ms=1037
+  748.364 -
+  748.364 # pulso_ms=560
+  749.290 # silencio_ms=925
+  749.826 -
+  749.826 # pulso_ms=535
+  750.757 [letra: M] [bin: 01001101]
+  751.551 # silencio_ms=1724
+  751.692 .
+  751.692 # pulso_ms=140
+  751.921 # silencio_ms=228
+  752.023 .
+  752.023 # pulso_ms=101
+  752.259 # silencio_ms=235
+  752.358 .
+  752.359 # pulso_ms=99
+  753.290 [letra: S] [bin: 01010011]
+  755.358 [palabra]
+  765.575 #MARK FIN TANDA 3 (usuario dijo listo; declara 27 toques)

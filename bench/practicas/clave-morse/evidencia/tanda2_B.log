@@ -1,0 +1,105 @@
+  308.218 #MARK INICIO TANDA 2 (p=140, 27 toques esperados)
+  472.369 # silencio_ms=290378
+  472.458 .
+  472.458 # pulso_ms=89
+  472.716 # silencio_ms=257
+  472.822 .
+  472.822 # pulso_ms=105
+  473.230 # silencio_ms=407
+  473.339 .
+  473.339 # pulso_ms=108
+  474.041 [letra: S] [bin: 01010011]
+  474.503 # silencio_ms=1163
+  475.083 -
+  475.083 # pulso_ms=579
+  475.543 # silencio_ms=459
+  476.185 -
+  476.185 # pulso_ms=641
+  476.886 [letra: M] [bin: 01001101]
+  477.038 # silencio_ms=852
+  477.689 -
+  477.689 # pulso_ms=650
+  478.390 [letra: T] [bin: 01010100]
+  479.489 [palabra]
+  479.893 # silencio_ms=2203
+  479.973 .
+  479.973 # pulso_ms=79
+  480.185 # silencio_ms=211
+  480.276 .
+  480.276 # pulso_ms=90
+  480.515 # silencio_ms=238
+  480.590 .
+  480.590 # pulso_ms=74
+  481.291 [letra: S] [bin: 01010011]
+  482.390 [palabra]
+  484.409 # silencio_ms=3818
+  484.539 .
+  484.539 # pulso_ms=129
+  484.858 # silencio_ms=318
+  484.957 .
+  484.957 # pulso_ms=98
+  485.275 # silencio_ms=317
+  485.386 .
+  485.386 # pulso_ms=110
+  486.088 [letra: S] [bin: 01010011]
+  486.640 # silencio_ms=1253
+  487.227 -
+  487.227 # pulso_ms=586
+  487.928 [letra: T] [bin: 01010100]
+  488.354 # silencio_ms=1126
+  489.076 -
+  489.076 # pulso_ms=721
+  489.778 [letra: T] [bin: 01010100]
+  490.250 # silencio_ms=1173
+  490.821 -
+  490.821 # pulso_ms=570
+  491.524 [letra: T] [bin: 01010100]
+  492.621 [palabra]
+  492.877 # silencio_ms=2055
+  492.970 .
+  492.970 # pulso_ms=92
+  493.230 # silencio_ms=259
+  493.287 .
+  493.287 # pulso_ms=56
+  493.603 # silencio_ms=315
+  493.678 .
+  493.678 # pulso_ms=74
+  494.379 [letra: S] [bin: 01010011]
+  495.478 [palabra]
+  498.749 # silencio_ms=5070
+  498.845 .
+  498.845 # pulso_ms=95
+  499.182 # silencio_ms=336
+  499.258 .
+  499.258 # pulso_ms=75
+  499.586 # silencio_ms=327
+  499.669 .
+  499.669 # pulso_ms=82
+  500.370 [letra: S] [bin: 01010011]
+  500.681 # silencio_ms=1011
+  501.252 -
+  501.257 # pulso_ms=570
+  501.953 [letra: T] [bin: 01010100]
+  502.055 # silencio_ms=802
+  502.645 -
+  502.645 # pulso_ms=589
+  503.346 [letra: T] [bin: 01010100]
+  503.486 # silencio_ms=840
+  504.163 -
+  504.163 # pulso_ms=676
+  504.864 [letra: T] [bin: 01010100]
+  505.849 # silencio_ms=1685
+  505.924 .
+  505.924 # pulso_ms=74
+  506.180 # silencio_ms=255
+  506.228 .
+  506.228 # pulso_ms=47
+  506.247 # silencio_ms=18
+  506.284 .
+  506.288 # pulso_ms=36
+  506.583 # silencio_ms=298
+  506.653 .
+  506.653 # pulso_ms=69
+  507.354 [letra: H] [bin: 01001000]
+  508.452 [palabra]
+  519.469 #MARK FIN TANDA 2 (usuario dijo listo; declara 27 toques en tanda 2; tanda 1 no sabe)
