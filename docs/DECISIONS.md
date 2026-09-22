@@ -304,4 +304,37 @@ reconstruction.** The sketch stamps only `# TX flanco` and `# resumen`, so the
 adapter anchors on the last stamp and extrapolates with the station's clock
 between anchors; they are not the board's own millisecond clock and must not
 be read as such. The real-firmware path, where all three limitations
-disappear, is `firmware/components/esps_morse/` — not written yet.
+disappear, is `firmware/components/esps_morse/`: its pure C11 half (table,
+decoder, key debounce) exists and is gated on the host; its ESP-IDF half is
+not written (see D-23).
+
+## D-23 — `esps_morse` ships its pure C11 half only, and the host gate is runnable without `make`
+`firmware/components/esps_morse/` is the table, the pulse/silence state machine
+and the key debounce: pure C11 over caller-owned state, no allocation, no
+globals, no ESP-IDF, compiled verbatim by `test/host/` under `-Werror` with
+ASan+UBSan. There is deliberately **no** `esps_morse.c` — no GPIO setup, no
+edge ISR, no FreeRTOS task, none of what `esps_dio.c` is for the digital link.
+The decoder reports events through a caller-supplied array (`esps_morse_edge`,
+`esps_morse_tick`) rather than a callback, and `tick()` may write two of them
+(letter then word) in that fixed order. Alongside the Makefile there is now
+`firmware/test/host/run_tests.py`, which compiles and runs exactly the same
+files with the same flags.
+**Why:** an ESP-IDF layer cannot be verified without the toolchain and two
+boards, and writing firmware glue that nobody has compiled is the placeholder
+AGENTS.md rule 9 forbids. The pure half, in contrast, is the part the practice
+actually rests on and is fully gated today — including two things no bench
+session can reach: the ~71.6 min `micros()` wrap and the ~49.7 day `millis()`
+wrap [D-10], both covered by vectors. A callback API was rejected because it
+would put station-shaped decisions (what to publish, how to rate-limit) inside
+a component that must stay decidable on a host. `run_tests.py` exists because
+`make` is not present on a stock Windows install, and a contributor who cannot
+run the gate will not run it; the Makefile stays the reference and CI keeps
+using it, and the runner warns when the two file lists have drifted.
+**Consequence:** the Morse boards on the bench still run the Arduino sketch and
+reach the station through the gateway adapter (D-22), with the three
+limitations named there. `esps_morse` is a third implementation of the same
+link — sketch, C11, Python — so the golden vectors in SPEC-DUPLEX.md are now
+load-bearing across three languages: change one, change all of them and the
+SPEC in the same commit. The `tick()` contract needs `max >= 2`; with `max ==
+1` a gap that closes both a letter and a word reports the letter and loses the
+word, which is documented at the declaration and is not detected at runtime.

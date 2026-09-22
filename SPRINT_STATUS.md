@@ -355,10 +355,10 @@ tumbaba el enlace y el nodo salía `offline` para siempre.
 
 ## NO hecho / NO verificado
 
-- [ ] **`firmware/components/esps_morse/`** — el decodificador como C11 puro con
-      tests de host. Es el camino a firmware real y **no está escrito**. Sin él,
-      estas placas son adaptadas, no nodos: sin runtime de experimentos, sin
-      NVS, sin store-and-forward.
+- [ ] **La mitad ESP-IDF de `esps_morse`** — GPIO, ISR de flanco, tarea y
+      publicación de canales, lo que `esps_dio.c` es para el enlace digital.
+      La mitad pura en C11 ya está y pasa en el host; sin la otra, estas placas
+      siguen siendo adaptadas y no nodos.
 - [ ] **Nodo simulado Morse** dentro del simulador del gateway. La demo sin
       hardware existe por reproducción de capturas (camino real), pero no hay
       un par de nodos sintéticos tecleándose entre ellos.
@@ -372,3 +372,26 @@ tumbaba el enlace y el nodo salía `offline` para siempre.
       Sí se han corrido, uno a uno, los cinco comandos de `bench-test`, la suite
       del gateway, la del desktop y las dos puertas de `contracts`.
 - [ ] La rama POSIX de `captura_serie.py` sigue sin reprobarse en Linux.
+
+## Anadido despues: esps_morse en C11 (2026-09-22)
+
+- [x] `firmware/components/esps_morse/` — mitad pura en C11: tabla Morse,
+      maquina de estados de pulso/silencio y antirrebote de la llave. Sin
+      asignacion, sin globales, sin ESP-IDF.
+- [x] `firmware/test/host/test_morse_{table,decode,key}.c` — vectores dorados,
+      incluidos los dos que ninguna sesion de banco puede alcanzar: el
+      envolvimiento de `micros()` (~71,6 min) y el de `millis()` (~49,7 dias).
+      Tambien los numeros reales de la tanda 2 (`EEE` por una `S`, y una `S` y
+      una `O` fundidas), que es el caso que prueba que no hay `letra_ms` valido.
+- [x] `firmware/test/host/run_tests.py` — la misma puerta sin necesitar `make`,
+      para que se pueda correr en Windows. El Makefile sigue siendo la
+      referencia y el runner avisa si las dos listas de ficheros se separan.
+- [x] Ejecutado en esta maquina con LLVM-MinGW: `ALL TESTS PASSED`, con
+      `-Werror` y ASan+UBSan.
+
+Decision y consecuencias: `docs/DECISIONS.md` D-23.
+
+**NO hecho:** la mitad ESP-IDF (`esps_morse.c`), que es GPIO, ISR de flanco,
+tarea y publicacion de canales. Y `make -C firmware/test/host test` no se ha
+podido ejecutar aqui por no haber `make`; lo verificado es el runner de Python,
+que compila los mismos ficheros con las mismas banderas.

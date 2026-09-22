@@ -275,9 +275,55 @@ anchas.
 | `gateway/tests/test_morse_sketch.py` | el adaptador; replica **un log entero** en frames válidos | 13 pruebas |
 | `gateway/tests/test_morse_replay_link.py` | reproducción por REST | 3 pruebas |
 | `desktop` | sección Morse | 8 pruebas |
+| `firmware/test/host` | **`esps_morse` en C11**: tabla, decodificador y llave, con `-Werror` + ASan/UBSan | 3 suites |
 | Hardware | las dos placas, en la app, con telemetría real | verificado |
 
-Las tres primeras entran en `make check` (objetivo `bench-test`).
+Las tres primeras entran en `make check` (objetivo `bench-test`); las de
+`firmware/test/host` entran por `fw-test`.
+
+### Ejecutar el componente C11, en Linux y en Windows
+
+`esps_morse` es la tercera implementación del enlace (las otras dos son el
+sketch Arduino y el espejo en Python). Se compila con `-Werror` y
+ASan+UBSan, y se ejecuta de dos formas equivalentes:
+
+```bash
+# Linux / macOS — la referencia, y lo que corre CI
+make -C firmware/test/host test
+
+# cualquier sistema, incluido Windows, sin necesitar make
+python3 firmware/test/host/run_tests.py
+```
+
+Salida esperada, con las tres suites nuevas al final:
+
+```
+== morse_table ==
+== morse_decode ==
+== morse_key ==
+ALL TESTS PASSED
+```
+
+En Windows hace falta un compilador C11 con sanitizers que **no sea** el clang
+de `LLVM.LLVM` (ése apunta a MSVC y pide las cabeceras de Visual Studio):
+
+```powershell
+winget install MartinStorsjo.LLVM-MinGW.UCRT
+$env:PATH = "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\MartinStorsjo.LLVM-MinGW.UCRT_*\llvm-mingw-*\bin;$env:PATH"
+python firmware\test\host\run_tests.py
+```
+
+Ese mismo `bin` lleva la DLL de ASan, así que con ponerlo en el `PATH` basta.
+
+> **Si sale `OSError: [WinError 4551]`**, es **Smart App Control** de Windows
+> bloqueando un ejecutable recién compilado; no es un fallo de los tests.
+> Es intermitente: en esta máquina hizo falta reintentar hasta cuatro veces
+> para una de las suites. Vuelve a lanzarlo, o desactiva Smart App Control si
+> vas a compilar a menudo.
+
+Dos de los vectores sólo pueden existir aquí: el envolvimiento de `micros()` a
+los ~71,6 min y el de `millis()` a los ~49,7 días. Ninguna sesión de banco dura
+lo suficiente para encontrarlos.
 
 **La defensa contra la deriva** son los vectores dorados: la misma lógica existe
 en el sketch Arduino, en `morse_link.py` y —cuando exista— en `esps_morse`. Si
@@ -289,10 +335,11 @@ cambias una, cambia las otras y el SPEC en el mismo commit.
 
 Dicho explícitamente, porque es tan parte de la guía como lo demás:
 
-- **`firmware/components/esps_morse/` no existe.** El camino a firmware real
-  —donde las tres limitaciones de la sección 2 desaparecen— está diseñado y
-  documentado, pero no escrito. Mientras tanto las placas son adaptadas, no
-  nodos.
+- **`esps_morse` no tiene todavía mitad ESP-IDF.** La lógica pura en C11 (tabla,
+  decodificador, antirrebote) **sí existe y pasa en el host**, pero falta lo que
+  `esps_dio.c` es para el enlace digital: configurar los GPIO, la ISR de flanco,
+  la tarea y la publicación de canales. Hasta que exista, las placas del banco
+  siguen con el sketch Arduino y llegan a la estación por el adaptador.
 - **No hay nodo simulado Morse** dentro del simulador del gateway. La demo sin
   hardware existe por reproducción de capturas, que usa el camino real, pero no
   es lo mismo que un par de nodos sintéticos tecleándose entre ellos.

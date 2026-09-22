@@ -19,6 +19,7 @@ help:
 	@echo "  make check          all gates that need no hardware (what CI runs)"
 	@echo "  make contracts      protocol drift + agent-role sync"
 	@echo "  make fw-test        firmware codec tests on the host (gcc + sanitizers)"
+	@echo "                      (sin make, p. ej. Windows: python3 firmware/test/host/run_tests.py)"
 	@echo "  make bench-test     the bench practices' real .ino sketches on a host mock"
 	@echo "  make fw-build       build firmware        [FW_ENV=$(FW_ENV)]"
 	@echo "  make fw-flash       build and upload      [FW_ENV=$(FW_ENV)]"

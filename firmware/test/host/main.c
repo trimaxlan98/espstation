@@ -13,6 +13,9 @@ int test_dio_stats_all(void);
 int test_dio_testgen_all(void);
 int test_dio_pins_all(void);
 int test_dio_policy_all(void);
+int test_morse_table_all(void);
+int test_morse_decode_all(void);
+int test_morse_key_all(void);
 
 int main(void) {
     int fails = 0;
@@ -35,6 +38,12 @@ int main(void) {
     fails += test_dio_pins_all();
     fprintf(stderr, "== dio_policy ==\n");
     fails += test_dio_policy_all();
+    fprintf(stderr, "== morse_table ==\n");
+    fails += test_morse_table_all();
+    fprintf(stderr, "== morse_decode ==\n");
+    fails += test_morse_decode_all();
+    fprintf(stderr, "== morse_key ==\n");
+    fails += test_morse_key_all();
 
     if (fails == 0) {
         printf("ALL TESTS PASSED\n");
