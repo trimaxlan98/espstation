@@ -197,3 +197,51 @@
   justify-content: space-between;
   gap: var(--space-4);
 }
+
+/* --- Morse (bench/practicas/morse-duplex) ------------------------------- */
+.morse-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* The decoded text is the headline of the whole practice, so it is the
+   biggest thing on the card. Monospace because the spaces between words
+   carry meaning here. */
+.morse-text {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  min-height: 38px;
+  word-break: break-all;
+  margin-bottom: 12px;
+}
+
+.morse-strips { display: grid; gap: 8px; margin-bottom: 12px; }
+.morse-strips__label { font-size: 12px; color: var(--muted); }
+
+.morse-level {
+  position: relative;
+  height: 18px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg);
+}
+.morse-level--empty { opacity: 0.5; }
+.morse-level__on,
+.morse-level__off { position: absolute; top: 0; bottom: 0; }
+.morse-level__on { background: var(--accent, #3ddc84); }
+.morse-level__off { background: transparent; }
+
+.morse-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+}
+
+.morse-ok { color: var(--ok, #3ddc84); }
+.morse-warn { color: var(--warn, #ffb86b); }
+.morse-note { opacity: 0.75; margin-top: 8px; }

@@ -417,8 +417,8 @@ se conserva sin modificar. Ver `INFORME.md` §8.6.
   ruido, el desbordamiento del buffer de flancos, los rechazos de comandos y el
   antirrebote del transmisor. Se comprobó con mutaciones (quitar la bandera de
   `[palabra]`, romper la entrada `S`, quitar los ceros a la izquierda del
-  binario) que estos tests fallan cuando deben. **No está enchufado a
-  `make check`.**
+  binario) que estos tests fallan cuando deben. **Forma parte de `make check`**
+  (objetivo `bench-test`), junto con `test_puente.py` y las de `../morse-duplex/`.
 - **Verificado en hardware el 2026-09-21** (ver `## Resultados`): el enlace A→B
   transmite la llave sin perder flancos y B decodifica; con umbrales calibrados con
   el operador, **2 de 3 `SOS` salieron bien en la tanda 3, pero 0 de 3 en la tanda 4 con los mismos

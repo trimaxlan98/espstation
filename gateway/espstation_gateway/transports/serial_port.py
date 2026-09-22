@@ -108,6 +108,20 @@ class SerialTransport(Transport):
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, self._ser.write, wire)
 
+    async def write_raw(self, data: bytes) -> None:
+        """Write bytes to the port WITHOUT ENLP framing.
+
+        Only for adapters whose device does not speak ENLP at all -- today
+        that is transports/morse_sketch.py, which has to ask an Arduino
+        sketch for its counters in the sketch's own plain-text language. A
+        node that speaks ENLP must always go through send(); framing is not
+        optional there (PROTOCOL.md section 2.1).
+        """
+        if self._ser is None:
+            raise SerialOpenError("SerialTransport is not open")
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, self._ser.write, data)
+
     async def receive(self) -> AsyncIterator[bytes]:
         loop = asyncio.get_running_loop()
         while not self._closing:

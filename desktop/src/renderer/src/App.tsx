@@ -7,6 +7,7 @@ import { Nodes } from './sections/Nodes'
 import { Live } from './sections/Live'
 import { Experiments } from './sections/Experiments'
 import { Networks } from './sections/Networks'
+import { Morse } from './sections/Morse'
 import { Lab } from './sections/Lab'
 import { Flash } from './sections/Flash'
 import { Settings } from './sections/Settings'
@@ -27,6 +28,8 @@ function ActiveSection(): React.JSX.Element {
       return <Experiments />
     case 'networks':
       return <Networks />
+    case 'morse':
+      return <Morse />
     case 'lab':
       return <Lab />
     case 'flash':

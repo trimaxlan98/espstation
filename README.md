@@ -88,7 +88,8 @@ hit within five minutes: [`docs/SETUP.md`](docs/SETUP.md).
 | `gateway/` | `espstation-gateway` — Python 3.11 / FastAPI; owns the ports, the codec and the database |
 | `desktop/` | `espstation-desktop` — TypeScript / Electron + React |
 | `protocol/` | **The contract.** [`PROTOCOL.md`](protocol/PROTOCOL.md) is law |
-| `docs/` | [Architecture](docs/ARCHITECTURE.md) · [Experiments](docs/EXPERIMENTS.md) · [Roadmap](docs/ROADMAP.md) · [Decisions](docs/DECISIONS.md) · [Setup](docs/SETUP.md) |
+| `docs/` | [Architecture](docs/ARCHITECTURE.md) · [Experiments](docs/EXPERIMENTS.md) · [Roadmap](docs/ROADMAP.md) · [Decisions](docs/DECISIONS.md) · [Setup](docs/SETUP.md) · [Morse practice](docs/PRACTICA-MORSE.md) (ES) |
+| `bench/` | Bench practices — Arduino sketches, contracts and recorded evidence |
 | `tools/` | Protocol drift gate, agent-definition sync, serial frame sniffer |
 
 ## Contributing — including with AI agents

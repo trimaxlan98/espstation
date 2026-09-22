@@ -28,6 +28,7 @@ from . import __version__
 from .protocol import messages as msg
 from .runtime import CommandTimeoutError, GatewayRuntime
 from .store import DEFAULT_DB_PATH, Store
+from .transports.base import TransportError
 from .transports.serial_port import InvalidPortPathError, SerialOpenError, SerialPermissionError, list_ports
 
 API_VERSION = "0.1.0"
@@ -46,13 +47,19 @@ class Settings:
 
 
 class LinkCreateBody(BaseModel):
-    kind: Literal["serial", "tcp", "sim"]
+    # "morse": a board running the morse-duplex bench sketch, adapted into
+    # real ENLP frames by transports/morse_sketch.py. It accepts no commands.
+    # "morse-replay": the same adapter fed from a recorded capture instead of
+    # a port, so the practice can be shown with no hardware at all.
+    kind: Literal["serial", "tcp", "sim", "morse", "morse-replay"]
     path: str | None = None
     baudrate: int = 115200
     baud: int | None = None
     host: str | None = None
     port: int | None = None
     label: str | None = None
+    speed: float | None = None   # morse-replay: playback speed multiplier
+    loop: bool | None = None     # morse-replay: restart when the log ends
 
 
 class CommandBody(BaseModel):
@@ -147,6 +154,17 @@ def create_app(settings: Settings | None = None, *, store: Store | None = None) 
                 if not body.path:
                     raise HTTPException(status_code=400, detail="'path' is required for kind=serial")
                 link = await runtime.attach_serial(body.path, body.baud or body.baudrate)
+            elif body.kind == "morse":
+                if not body.path:
+                    raise HTTPException(status_code=400, detail="'path' is required for kind=morse")
+                link = await runtime.attach_morse_sketch(
+                    body.path, body.baud or body.baudrate, label=body.label or "")
+            elif body.kind == "morse-replay":
+                if not body.path:
+                    raise HTTPException(status_code=400, detail="'path' is required for kind=morse-replay")
+                link = await runtime.attach_morse_replay(
+                    body.path, label=body.label or "", speed=body.speed or 1.0,
+                    loop=bool(body.loop))
             elif body.kind == "tcp":
                 if not body.host or not body.port:
                     raise HTTPException(status_code=400, detail="'host' and 'port' are required for kind=tcp")
@@ -155,6 +173,10 @@ def create_app(settings: Settings | None = None, *, store: Store | None = None) 
                 links = await runtime.attach_sim(1, label_prefix=body.label or "sim")
                 link = links[0]
         except (InvalidPortPathError, SerialPermissionError, SerialOpenError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except (TransportError, OSError) as exc:
+            # A capture that is not there, or a port that vanished between
+            # listing and opening: the operator's input was wrong, not ours.
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return runtime.link_summary(link)
 

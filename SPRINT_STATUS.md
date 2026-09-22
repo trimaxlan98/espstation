@@ -311,3 +311,64 @@ en A. Subirla **sustituye el sketch de N1** en las dos placas.
       **No verificado:** el visor en Firefox con las placas reales (solo Chromium headless con la demo); la latencia A→B (no se mide).
 - [ ] **El visor no está integrado en la app de escritorio** a propósito: estas placas no hablan ENLP, así que la app no recibe sus datos.
 - [ ] **Sin commitear**, y el `.zip` de entrega no está versionado. `.gitignore:36` (`*.log`) ignora la evidencia.
+
+---
+
+# Slice Morse dúplex en la app (2026-09-22)
+
+Continúa la práctica `bench/practicas/morse-duplex/`, que hasta ahora vivía sólo
+en el banco. Guía completa: [`docs/PRACTICA-MORSE.md`](docs/PRACTICA-MORSE.md).
+Decisión de diseño y sus consecuencias: [`docs/DECISIONS.md`](docs/DECISIONS.md) D-22.
+
+## Hecho y verificado (salida real, esta máquina)
+
+- [x] `gateway/.../transports/sim/morse_link.py` — contrato Morse en Python:
+      tabla, decodificador, filtro de llave, generador y **canales NDB 22-29**.
+- [x] `gateway/.../transports/morse_sketch.py` — adaptador `FrameDecoder`: el
+      texto del sketch entra y salen **frames ENLP reales**, más
+      `MorseLogReplayTransport` para reproducir capturas grabadas.
+- [x] `attach_morse_sketch` / `attach_morse_replay` en el runtime, y los
+      `kind: "morse"` y `kind: "morse-replay"` en `POST /api/links`.
+- [x] Sondeo del adaptador: `r` cada 5 s y un único `v` si hace falta. Sin esto
+      los canales quedaban vacíos, porque abrir el puerto reinicia la placa.
+- [x] `desktop`: sección **Morse** (texto recibido, tiras de nivel, contadores,
+      cruce de integridad) + entrada en la barra lateral.
+- [x] Las prácticas Morse entran en `make check` (objetivo `bench-test`).
+- [x] **Verificado contra las dos placas reales**: aparecen como nodos
+      `online`, declaran los nueve canales y la telemetría fluye al teclear
+      (`morse.symbols=9`, `pulse_ms`, `gap_ms`, `tx`/`rx`, `bounces`).
+
+Salidas reales:
+
+```
+gateway:  321 passed                      (eran 285; +36)
+desktop:  9 files, 72 tests passed        (eran 64; +8); typecheck y build limpios
+bench:    enlace-digital 91 comprobaciones · clave-morse TODO OK ·
+          morse-duplex TODO OK (35) · test_puente 24/0 · test_visor 27/0
+protocolo: protocol in sync — 55 checks passed, 0 skipped
+```
+
+Dos fallos reales que cazaron las pruebas y el hardware, ya corregidos:
+el HELLO de 1241 B no cabía en un frame (ahora va troceado, como el simulador),
+y el transporte rechazaba **todo** envío, así que el `HELLO_ACK` de la estación
+tumbaba el enlace y el nodo salía `offline` para siempre.
+
+## NO hecho / NO verificado
+
+- [ ] **`firmware/components/esps_morse/`** — el decodificador como C11 puro con
+      tests de host. Es el camino a firmware real y **no está escrito**. Sin él,
+      estas placas son adaptadas, no nodos: sin runtime de experimentos, sin
+      NVS, sin store-and-forward.
+- [ ] **Nodo simulado Morse** dentro del simulador del gateway. La demo sin
+      hardware existe por reproducción de capturas (camino real), pero no hay
+      un par de nodos sintéticos tecleándose entre ellos.
+- [ ] **Comandos desde la app** (`morse.*` en la tabla de comandos). Exige el
+      cambio de protocolo atómico en los cuatro sitios. Hoy un `CMD` falla
+      ruidosamente a propósito.
+- [ ] **Etapa de dos ordenadores**: el procedimiento de medida de masas está
+      escrito; nadie lo ha ejecutado.
+- [ ] `make check` **entero** no se ha corrido en esta máquina: falta `make` y el
+      toolchain de ESP-IDF, así que `fw-test` y `fw-build` no se han ejecutado.
+      Sí se han corrido, uno a uno, los cinco comandos de `bench-test`, la suite
+      del gateway, la del desktop y las dos puertas de `contracts`.
+- [ ] La rama POSIX de `captura_serie.py` sigue sin reprobarse en Linux.

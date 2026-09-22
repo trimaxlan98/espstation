@@ -270,3 +270,38 @@ IRAM benefit, 10 kbit/s holding, ISR keep-up, the 6144 B stack budget) are
 hypotheses with a named bench test each in the hardware-verification prompt.
 Two boards must be flashed with different roles: two role-B boards look inert
 and two role-A boards both report `link.lost`.
+
+## D-22 — The Morse bench boards are adapted into ENLP, not reimplemented as nodes
+`bench/practicas/morse-duplex/` runs an Arduino sketch that prints plain text
+at 115200. `gateway/espstation_gateway/transports/morse_sketch.py` makes those
+boards visible in the app by sitting in the **FrameDecoder** slot: text goes
+in, real ENLP frames come out, built with `protocol.frames`/`protocol.messages`
+and immediately re-parsed. The station learns the link through **NDB channels
+22-29** (`morse.*`), which are inside the node-defined range 16-127, so no
+protocol change is involved and `tools/check_protocol.py` is untouched. The
+adapter declares only `sys.uptime` of the mandatory system channels. The link
+is created with `kind: "morse"`; `kind: "morse-replay"` feeds the same adapter
+from a recorded `captura_serie.py` capture instead of a port.
+**Why:** the alternative — teaching the gateway to speak a second device
+protocol — would put a second codec in the station and break D-8. As a decoder,
+the Morse path reaches the registry, the store, REST, WS and the desktop as an
+ordinary node with no special cases anywhere downstream. Announcing
+`sys.heap_free` or `sys.rssi` was rejected: the adapter cannot know them, and a
+channel that never produces a sample is a lie the station charts as a gap.
+**Consequence:** these boards are **not** espstation-fw nodes and must never be
+mistaken for them — `fw.build` is `arduino-sketch` and `caps` carries
+`read_only`. Three things follow. (1) **Commands cannot reach them.** A `CMD`
+or `EXP_SET` raises `TransportError` rather than being swallowed, because an
+operator must not believe a command landed when the board cannot parse it;
+supporting `p/l/w/d/k` from the app needs a `morse.*` op and therefore the
+full four-place protocol change. (2) **The adapter does write two things**:
+`r` (a pure read of thresholds and counters) on a 5 s poll, and at most one
+`v` per attach if the board reports verbose off. Opening the port resets the
+board, which clears verbose and zeroes the counters, so without this the eight
+declared channels stay empty forever — this is a driver configuring its own
+source, not the station commanding a node. (3) **Timestamps are a
+reconstruction.** The sketch stamps only `# TX flanco` and `# resumen`, so the
+adapter anchors on the last stamp and extrapolates with the station's clock
+between anchors; they are not the board's own millisecond clock and must not
+be read as such. The real-firmware path, where all three limitations
+disappear, is `firmware/components/esps_morse/` — not written yet.

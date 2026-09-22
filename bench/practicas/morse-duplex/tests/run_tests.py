@@ -11,8 +11,8 @@ Prueba la LOGICA, no la temporizacion real de las placas (latencia de la ISR,
 rebote fisico, pulso humano) ni nada del enlace entre dos ordenadores: eso se
 mide en el banco (README.md, "Resultados").
 
-No esta enchufado a `make check`.
-Uso: python3 bench/practicas/morse-duplex/tests/run_tests.py
+Forma parte de `make check` (objetivo `bench-test`).
+Uso suelto: python3 bench/practicas/morse-duplex/tests/run_tests.py
 """
 import subprocess, sys, tempfile
 from pathlib import Path

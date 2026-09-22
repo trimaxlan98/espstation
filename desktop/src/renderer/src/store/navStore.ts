@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type SectionId = 'nodes' | 'live' | 'experiments' | 'networks' | 'lab' | 'flash' | 'settings'
+export type SectionId = 'nodes' | 'live' | 'experiments' | 'networks' | 'morse' | 'lab' | 'flash' | 'settings'
 
 interface NavState {
   section: SectionId

@@ -19,7 +19,7 @@ help:
 	@echo "  make check          all gates that need no hardware (what CI runs)"
 	@echo "  make contracts      protocol drift + agent-role sync"
 	@echo "  make fw-test        firmware codec tests on the host (gcc + sanitizers)"
-	@echo "  make bench-test     Arduino N3 sketch (real .ino, host g++) vs SPEC-LINK + dio_link.py"
+	@echo "  make bench-test     the bench practices' real .ino sketches on a host mock"
 	@echo "  make fw-build       build firmware        [FW_ENV=$(FW_ENV)]"
 	@echo "  make fw-flash       build and upload      [FW_ENV=$(FW_ENV)]"
 	@echo "  make fw-monitor     serial monitor        [PORT=$(PORT)]"
@@ -44,13 +44,20 @@ contracts:
 fw-test:
 	$(MAKE) -C firmware/test/host test
 
-# The Arduino sketch of the bench practice is the third implementation of the
-# two-wire link (esps_dio in C and dio_link.py are the others). This includes
-# the REAL .ino on a minimal host mock and checks it against SPEC-LINK.md and
-# LinkMonitor, so the three cannot drift silently. Needs g++ and the gateway
-# venv (CI: `make bench-test GW_PY=python`). Proves logic only, never timing.
+# The Arduino sketches of the bench practices are third implementations of
+# their links: esps_dio / dio_link.py for the two-wire link, esps_morse /
+# morse_link.py for the Morse one. Each of these runs the REAL .ino on a
+# minimal host mock and checks it against its SPEC, so no pair can drift
+# silently. The last two also cover the browser-facing tools: the serial
+# bridge and the duplex viewer, replayed against recorded evidence.
+# Needs g++ and the gateway venv (CI: `make bench-test GW_PY=python`).
+# Proves logic only, never timing -- that is measured on the bench.
 bench-test:
 	$(GW_PY) bench/practicas/enlace-digital/tests/run_tests.py
+	$(GW_PY) bench/practicas/clave-morse/tests/run_tests.py
+	$(GW_PY) bench/practicas/morse-duplex/tests/run_tests.py
+	$(GW_PY) bench/practicas/clave-morse/tests/test_puente.py
+	$(GW_PY) bench/practicas/morse-duplex/tests/test_visor.py
 
 fw-build:
 	$(PIO) run -d firmware -e $(FW_ENV)

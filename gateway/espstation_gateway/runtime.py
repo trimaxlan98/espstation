@@ -18,6 +18,9 @@ from .protocol.ndb import NodeRegistry, UnknownChannelError
 from .store import Store
 from .transports.base import Link, LinkEvent, RawFrameDecoder
 from .transports.serial_port import SerialTransport
+from .transports.morse_sketch import (
+    MorseLogReplayTransport, MorseSketchDecoder, MorseSketchTransport,
+)
 from .transports.sim.network import SimNetwork
 from .transports.sim.node import DioConfig, SimNode, SimTransport
 from .transports.tcp import LengthPrefixDecoder, TcpTransport
@@ -66,6 +69,8 @@ class GatewayRuntime:
         self._time_sync_pending: dict[int, int] = {}
         self._subscribers: list[Subscriber] = []
         self._tasks: list[asyncio.Task] = []
+        # link id -> the poll task that keeps a morse adapter's source alive
+        self._morse_tasks: dict[str, asyncio.Task] = {}
 
     # -- pub/sub for the WS layer -------------------------------------------
 
@@ -100,6 +105,9 @@ class GatewayRuntime:
                 await t
             except (asyncio.CancelledError, Exception):
                 pass
+        for t in self._morse_tasks.values():
+            t.cancel()
+        self._morse_tasks = {}
         self._tasks = []
         for link in list(self.links.values()):
             await link.stop()
@@ -125,6 +133,81 @@ class GatewayRuntime:
         transport = SerialTransport(path, baudrate)
         link = Link(self._new_link_id("serial"), "serial", transport, StreamingDecoder(), self.registry)
         return await self._start_link(link, {"path": path, "baudrate": baudrate})
+
+    async def attach_morse_sketch(self, path: str, baudrate: int = 115200,
+                                  *, label: str = "", verbose: bool = True) -> Link:
+        """Attach a board running the morse-duplex bench sketch.
+
+        The sketch speaks plain text, not ENLP, so the adapter sits in the
+        decoder slot and turns it into real frames (transports/morse_sketch.py).
+        Downstream this is an ordinary node -- with `read_only` in its caps,
+        because it is one.
+
+        The node id is derived from the port path so the same board keeps its
+        identity across reconnects; that is the only identity available, since
+        the sketch never announces a MAC.
+        """
+        # 0x4D00 is 'M' in the high byte: a Morse adapter node is recognisable
+        # in a frame dump without looking anything up.
+        node_id = 0x4D00 | (sum(path.encode()) & 0xFF)
+        transport = MorseSketchTransport(SerialTransport(path, baudrate))
+        decoder = MorseSketchDecoder(node_id, label=label or f"morse {path}")
+        link = Link(self._new_link_id("morse"), "morse", transport, decoder, self.registry)
+        await self._start_link(
+            link, {"path": path, "baudrate": baudrate, "node_id": node_id,
+                   "adapter": "morse-duplex-sketch", "commands": False,
+                   "primes": "r/v"})
+        self._morse_tasks[link.id] = asyncio.create_task(
+            self._morse_poll(link, transport, decoder, verbose=verbose),
+            name=f"morse-poll-{link.id}")
+        return link
+
+    async def attach_morse_replay(self, path: str, *, label: str = "",
+                                  speed: float = 1.0, loop: bool = False) -> Link:
+        """Attach a recorded bench capture as if it were a board.
+
+        Same adapter, same decoder, same frames as attach_morse_sketch: only
+        the source of the bytes changes. This is how the Morse practice is
+        demonstrated with zero hardware, which is the promise the whole
+        project makes about the simulator [D-8] -- and because it exercises
+        the real path rather than a mock of it, a demo that works here is
+        evidence the live path works too.
+        """
+        node_id = 0x4D00 | (sum(path.encode()) & 0xFF)
+        transport = MorseSketchTransport(MorseLogReplayTransport(path, speed=speed, loop=loop))
+        decoder = MorseSketchDecoder(node_id, label=label or f"replay {path}")
+        link = Link(self._new_link_id("morse"), "morse", transport, decoder, self.registry)
+        return await self._start_link(
+            link, {"path": path, "node_id": node_id, "adapter": "morse-duplex-sketch",
+                   "replay": True, "speed": speed, "commands": False})
+
+    async def _morse_poll(self, link: Link, transport: MorseSketchTransport,
+                          decoder: MorseSketchDecoder, *, verbose: bool,
+                          period_s: float = 5.0) -> None:
+        """Keeps the adapter's own data source producing.
+
+        The sketch is silent when nobody keys, and it prints its counters only
+        when asked. Opening the port also resets the board, which clears
+        verbose -- so the channels this adapter declared would stay empty
+        forever unless it asks. `r` is a pure read; `v` is sent at most once,
+        and only if the board says verbose is off. Neither is an operator
+        command: those still cannot reach the board (morse_sketch.send()).
+        """
+        try:
+            await asyncio.sleep(1.2)          # let the boot banner finish
+            await transport.write_text("r\n")
+            await asyncio.sleep(0.8)
+            if verbose and decoder.verbose == 0:
+                await transport.write_text("v\n")
+                await asyncio.sleep(0.3)
+                await transport.write_text("r\n")
+            while link.connected:
+                await asyncio.sleep(period_s)
+                await transport.write_text("r\n")
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:              # the port went away; the pump reports it
+            await self._publish("link", {"id": link.id, "poll_error": str(exc)})
 
     async def attach_tcp(self, host: str, port: int) -> Link:
         transport = TcpTransport(host, port)
@@ -164,6 +247,9 @@ class GatewayRuntime:
         link = self.links.pop(link_id, None)
         if link is None:
             raise KeyError(f"no such link {link_id!r}")
+        task = self._morse_tasks.pop(link_id, None)
+        if task is not None:
+            task.cancel()
         await link.stop()
         self.store.close_link(link_id)
         await self._publish("link", {"id": link_id, "detached": True})
